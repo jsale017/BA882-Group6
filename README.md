@@ -1,4 +1,4 @@
-# BA882-Group6
+# Predictive End-to-End Analytics Pipeline for Financial APIs
 
 BA882 - Deploying Analytics Pipelines 
 
