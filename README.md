@@ -21,7 +21,7 @@ e.	Documentation of API: https://www.alphavantage.co/documentation/
 
 - We are developing an end-to-end pipeline for financial market data, driven by our passion for pursuing careers in the financial services industry after completing our Master's program. This project will not only help us automate processes but also allow us to apply advanced deep learning models, such as RNNs, to adapt to new financial information continuously. By leveraging machine learning techniques from previous courses, we aim to build a robust system that provides a comprehensive understanding of current U.S. market conditions with updated data. 
 
-Using Alpha Vantage's data feeds, which offer real-time and historical data for stocks, and cryptocurrencies, as well as a wide range of technical indicators, we will perform detailed market analysis. This project aligns perfectly with our career goals and provides an excellent opportunity to implement pipelines that match our goals.
+  Using Alpha Vantage's data feeds, which offer real-time and historical data for stocks, and cryptocurrencies, as well as a wide range of technical indicators, we will perform detailed market analysis. This project aligns perfectly with our career goals and provides an excellent opportunity to implement pipelines that match our goals.
 
 4. What are the business problem(s) you will be exploring once your data are being collected?
 
