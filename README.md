@@ -27,8 +27,8 @@ e.	Documentation of API: https://www.alphavantage.co/documentation/
 
 - The business problem we are addressing focuses on improving decision-making for financial advisors. This will enable them to better serve their customers by providing timely access to market data. By designing an efficient, end-to-end pipeline for financial data analysis, financial institutions can reduce investment risk, improve responsiveness, and gain a competitive advantage. This automated process will allow advisors to make faster, data-driven decisions to optimize their portfolios.
 
-Key business challenges we aim to explore include analyzing specific portfolios based on risk/return metrics, evaluating industries, assessing volatility and other risk factors, and interpreting events such as major corporate actions. We also aim to predict market trends, including future volume and price movements, which will assist investors in making informed buy/sell decisions.
+  Key business challenges we aim to explore include analyzing specific portfolios based on risk/return metrics, evaluating industries, assessing volatility and other risk factors, and interpreting events such as major corporate actions. We also aim to predict market trends, including future volume and price movements, which will assist investors in making informed buy/sell decisions.
 
-Once data is collected from sources like the Alpha Vantage API, we will focus on optimizing pipeline efficiency. We will leverage machine learning models to forecast stock prices and market trends based on real-time and historical data. Furthermore, we plan to filter and segment data into meaningful feature clusters, allowing financial advisors to formulate more accurate investment strategies.
+  Once data is collected from sources like the Alpha Vantage API, we will focus on optimizing pipeline efficiency. We will leverage machine learning models to forecast stock prices and market trends based on real-time and historical data. Furthermore, we plan to filter and segment data into meaningful feature clusters, allowing financial advisors to formulate more accurate investment strategies.
 
 
