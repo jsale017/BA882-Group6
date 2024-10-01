@@ -2,13 +2,15 @@ from prefect import flow, task, get_run_logger
 from prefect.context import get_run_context
 import requests
 import datetime
+import os
 
 # Your Slack webhook URL
-webhook_url = 'https://hooks.slack.com/services/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'
+webhook_url = os.getenv('SLACK_WEBHOOK_URL')
 
-# Base URL of your Prefect server (adjust if using a different server)
+if not webhook_url:
+    raise ValueError("Slack Webhook URL is not set in the environment variables")
+
 PREFECT_SERVER_URL = "http://127.0.0.1:4200/runs/flow-run/"
-
 # Task that will succeed
 @task
 def success_task():
