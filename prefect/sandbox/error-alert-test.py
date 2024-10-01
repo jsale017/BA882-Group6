@@ -5,7 +5,7 @@ import datetime
 import os
 
 # Your Slack webhook URL
-webhook_url = os.getenv('SLACK_WEBHOOK_URL')
+webhook_url = os.getenv('SLACK_WEBHOOK_URL')    #Retriving your Slack URL 
 
 if not webhook_url:
     raise ValueError("Slack Webhook URL is not set in the environment variables")
