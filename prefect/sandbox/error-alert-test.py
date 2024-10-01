@@ -5,24 +5,33 @@ import datetime
 import os
 
 # Your Slack webhook URL
-webhook_url = os.getenv('SLACK_WEBHOOK_URL')    #Retriving your Slack URL 
+webhook_url = os.getenv('SLACK_WEBHOOK_URL')
 
 if not webhook_url:
     raise ValueError("Slack Webhook URL is not set in the environment variables")
 
-PREFECT_SERVER_URL = "http://127.0.0.1:4200/runs/flow-run/"
-# Task that will succeed
-@task
-def success_task():
-    logger = get_run_logger()
-    logger.info("This task succeeds!")
+FINNHUB_API_KEY = os.getenv('FINNHUB_API_KEY')
 
-# Task that will fail
+if not FINNHUB_API_KEY:
+    raise ValueError("Finnhub API Key is not set in the environment variables")
+
+PREFECT_SERVER_URL = "http://127.0.0.1:4200/runs/flow-run/"
+
+# Task that fetches stock data from Finnhub API
 @task
-def fail_task():
+def fetch_stock_data(symbol: str = "AAPL"):
     logger = get_run_logger()
-    logger.info("This task will fail...")
-    raise ValueError("Something went wrong!")
+    logger.info(f"Fetching stock data for {symbol}...")
+
+    url = f"https://finnhub.io/api/v1/quote?symbol={symbol}&token={FINNHUB_API_KEY}"
+    response = requests.get(url)
+    
+    if response.status_code == 200:
+        stock_data = response.json()
+        logger.info(f"Stock data for {symbol}: {stock_data}")
+        return stock_data
+    else:
+        raise ValueError(f"Failed to fetch stock data for {symbol}: {response.status_code}")
 
 # Function to send alert to Slack
 def send_slack_alert(flow_name, flow_run_id, flow_id, state_message, flow_url):
@@ -47,8 +56,7 @@ def send_slack_alert(flow_name, flow_run_id, flow_id, state_message, flow_url):
 @flow
 def example_flow():
     try:
-        success_task()  # This will run fine
-        fail_task()     # This will raise an error
+        stock_data = fetch_stock_data("AAPL")  # Fetch stock data
     except Exception as e:
         # Capture Prefect context information
         context = get_run_context()

@@ -1,24 +1,43 @@
-import pandas as pd
+from google.cloud import bigquery
 import functions_framework
 
 @functions_framework.http
-def read_csv_and_print_info(request):
-    # URL of the CSV file
-    csv_url = "https://vincentarelbundock.github.io/Rdatasets/csv/ggplot2/diamonds.csv"
-    
+def main(request):
+    bq_client = bigquery.Client()
+
+    dataset_id = 'finhub'
+    table_id = 'raw_market_data'
+    project_id = bq_client.project
+
+    create_dataset_sql = f"""
+    CREATE SCHEMA IF NOT EXISTS `{project_id}.{dataset_id}`
+    """
+
     try:
-        # Read the CSV file from the web
-        df = pd.read_csv(csv_url)
-        
-        # Capture the info output as a string
-        info_string = df.info(buf=None, max_cols=None, memory_usage=False)
-        
-        # Print the info (this will be logged in Cloud Functions)
-        print(info_string)
-        
-        return f"CSV file processed successfully. Info printed to logs."
-    
+        bq_client.query(create_dataset_sql).result()
+        print(f"Dataset {dataset_id} exists or created successfully.")
     except Exception as e:
-        error_message = f"An error occurred: {str(e)}"
-        print(error_message)
-        return error_message
+        print(f"Error creating dataset {dataset_id}: {e}", 500)
+
+    # EtLT
+    create_table_sql = f"""
+    CREATE TABLE IF NOT EXISTS `{project_id}.{dataset_id}.{table_id}` (
+        symbol STRING,
+        open FLOAT64,
+        high FLOAT64,
+        low FLOAT64,
+        close FLOAT64,
+        volume INT64,
+        timestamp TIMESTAMP,
+        ingest_timestamp TIMESTAMP,
+        raw_feed STRING
+    )
+    """
+
+    # Execute the SQL to create the table
+    try:
+        bq_client.query(create_table_sql).result()
+        print(f"Table {table_id} in dataset {dataset_id} exists or created successfully.")
+    except Exception as e:
+        print(f"Error creating table {table_id} in dataset {dataset_id}: {e}", 500)
+    return {'statusCode':200}
