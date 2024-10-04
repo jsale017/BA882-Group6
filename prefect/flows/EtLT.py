@@ -14,7 +14,7 @@ def invoke_gcf(url: str, payload: dict):
 @task(retries=2, retry_delay_seconds=2)
 def schema_setup():
     """Set up the Stage Schema (simulated for now)"""
-    url = "YOUR_GCF_URL_FOR_SCHEMA_SETUP"  # Replace with Cloud Function URL if available
+    url = "https://us-central1-ba882-jsale.cloudfunctions.net/schema-setup-function" 
     print("Schema setup task triggered")
     resp = invoke_gcf(url, payload={})
     return resp
@@ -51,7 +51,6 @@ def load(payload):
 @task(retries=2, retry_delay_seconds=2)
 def transform_2(loaded_data):
     """Perform second transformation on the loaded data"""
-    # Example of an additional transformation, let's say we calculate a new field, e.g., price range (high-low)
     loaded_data['price_range'] = loaded_data['h'] - loaded_data['l']
     print(f"Second transformation: {loaded_data}")
     return loaded_data
@@ -61,27 +60,26 @@ def transform_2(loaded_data):
 def etlt_flow(symbol: str = "AAPL"):
     """The ETLT flow to orchestrate Finnhub stock data extraction"""
 
-    # Step 1: Schema setup (if applicable)
-    result = schema_setup()  # Simulate schema setup
+    result = schema_setup()
     print('The Schema Setup is Completed!')
 
-    # Step 2: Extract stock data
+    # Extract Stock Data
     extract_result = extract(symbol)
     print(f"The stock data for {symbol} was extracted!")
     print(f"{extract_result}")
 
-    # Step 3: First transformation
+    # First transformation
     transform_1_result = transform_1(extract_result)
     print("The first transformation is completed!")
     print(f"{transform_1_result}")
 
-    # Step 4: Load transformed data
+    # Loading data
     load_result = load(transform_1_result)
     print("The transformed stock data was loaded!")
     print(f"{load_result}")
 
-    # Step 5: Second transformation after loading
-    transform_2_result = transform_2(transform_1_result)  # Optionally, load_result can be used
+    # Transformation
+    transform_2_result = transform_2(transform_1_result)
     print("The second transformation is completed!")
     print(f"{transform_2_result}")
 
