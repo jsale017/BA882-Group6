@@ -3,6 +3,7 @@
 from google.cloud import secretmanager
 from google.cloud import storage
 import requests
+import feedparser
 import json
 import datetime
 import uuid
