@@ -12,18 +12,18 @@ def invoke_gcf(url: str, payload: dict):
 @task(retries=2)
 def schema_setup():
     """Setup the stage schema for FinnHub data"""
-    url = ""
+    url = "https://us-east1-financial-pipeline-group-6.cloudfunctions.net/schema-setup"
     resp = invoke_gcf(url, payload={})
     return resp
 
 @task(retries=2)
 def extract():
     """Extract the financial data from FinnHub and store it on GCS"""
-    url = ""
+    url = "https://us-east1-financial-pipeline-group-6.cloudfunctions.net/extract"
     payload = {
-        "symbol": "AAPL",  # Example stock symbol
-        "from_timestamp": 1672531200,  # Example start time (UNIX timestamp)
-        "to_timestamp": 1704067200     # Example end time (UNIX timestamp)
+        "symbol": "AAPL",
+        "from_timestamp": 1672531200,  
+        "to_timestamp": 1704067200     
     }
     resp = invoke_gcf(url, payload=payload)
     return resp
@@ -31,14 +31,14 @@ def extract():
 @task(retries=2)
 def transform(payload):
     """Process the financial data into parquet format on GCS"""
-    url = ""
+    url = "https://us-east1-financial-pipeline-group-6.cloudfunctions.net/transform"
     resp = invoke_gcf(url, payload=payload)
     return resp
 
 @task(retries=2)
 def load(payload):
     """Load the financial data into the raw schema and ingest new records into stage tables"""
-    url = ""
+    url = "https://us-east1-financial-pipeline-group-6.cloudfunctions.net/load"
     resp = invoke_gcf(url, payload=payload)
     return resp
 
