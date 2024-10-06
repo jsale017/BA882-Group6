@@ -6,13 +6,24 @@ import json
 import datetime
 import uuid
 import functions_framework
+import os
 
 # settings
-project_id = 'ba882-jsale'
+project_id = 'financial-pipeline-group-6'
+
+def get_finnhub_api_key():
+    client = secretmanager.SecretManagerServiceClient()
+    name = f"projects/{project_id}/secrets/FINNHUB_API_KEY/versions/latest"
+    response = client.access_secret_version(request={"name": name})
+    return response.payload.data.decode("UTF-8")
+
+finnhub_api_key = get_finnhub_api_key()
+
 secret_id = 'mother_db'
 version_id = 'latest'
-bucket_name = 'predictive-fin-analytics-bucket'
+bucket_name = 'financial-pipeline-group-6-bucket'
 finnhub_api_key = os.getenv('FINNHUB_API_KEY')
+
 
 
 ####################################################### helpers

@@ -5,9 +5,10 @@ from google.cloud import storage
 import json
 import duckdb
 import pandas as pd
+import os
 
 # setup
-project_id = 'ba882-jsale'
+project_id = 'financial-pipeline-group-6'
 secret_id = 'mother_db'
 version_id = 'latest'
 

@@ -7,12 +7,13 @@ import pandas as pd
 import datetime
 import uuid
 import requests
+import os 
 
 # settings
-project_id = 'ba882-jsale'
+project_id = 'financial-pipeline-group-6'
 secret_id = 'mother_db'
 version_id = 'latest'
-bucket_name = 'predictive-fin-analytics-bucket'
+bucket_name = 'financial-pipeline-group-6-bucket'
 finnhub_api_key = os.getenv('FINNHUB_API_KEY')
 
 ingest_timestamp = pd.Timestamp.now()
