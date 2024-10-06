@@ -1,9 +1,7 @@
 # imports
-
 from google.cloud import secretmanager
 from google.cloud import storage
 import requests
-import feedparser
 import json
 import datetime
 import uuid
@@ -36,7 +34,7 @@ def upload_to_gcs(bucket_name, job_id, data):
 ####################################################### core task
 
 @functions_framework.http
-def task(request):
+def finnhub_schema_setup(request):  # Rename the function here
     # Generate a unique job ID for tracking
     job_id = datetime.datetime.now().strftime("%Y%m%d%H%M") + "-" + str(uuid.uuid4())
 
