@@ -19,7 +19,7 @@ def schema_setup():
 @task(retries=2)
 def extract():
     """Extract the financial data from FinnHub and store it on GCS"""
-    url = "https://us-east1-financial-pipeline-group-6.cloudfunctions.net/extract"
+    url = "https://us-east1-financial-pipeline-group-6.cloudfunctions.net/extract-rss"
     payload = {
         "symbol": "AAPL",
         "from_timestamp": 1672531200,  
@@ -31,14 +31,14 @@ def extract():
 @task(retries=2)
 def transform(payload):
     """Process the financial data into parquet format on GCS"""
-    url = "https://us-east1-financial-pipeline-group-6.cloudfunctions.net/transform"
+    url = "https://us-east1-financial-pipeline-group-6.cloudfunctions.net/parse-rss"
     resp = invoke_gcf(url, payload=payload)
     return resp
 
 @task(retries=2)
 def load(payload):
     """Load the financial data into the raw schema and ingest new records into stage tables"""
-    url = "https://us-east1-financial-pipeline-group-6.cloudfunctions.net/load"
+    url = "https://us-east1-financial-pipeline-group-6.cloudfunctions.net/load-rss"
     resp = invoke_gcf(url, payload=payload)
     return resp
 

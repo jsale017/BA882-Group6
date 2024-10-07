@@ -6,7 +6,7 @@ import duckdb
 import datetime
 
 # settings
-project_id = 'ba882-jsale'
+project_id = 'financial-pipeline-group-6'
 secret_id = 'mother_db'
 version_id = 'latest'
 finnhub_api_key = os.getenv('FINNHUB_API_KEY')
@@ -31,7 +31,8 @@ def finnhub_schema_setup(request):
         md_token = response.payload.data.decode("UTF-8")
 
         # initiate the MotherDuck connection through an access token
-        md = duckdb.connect(f'md:?motherduck_token={md_token}') 
+        md = duckdb.connect()
+        md.sql(f"Set motherduck_token = '{md_token}'") 
 
         # Create the schema
         create_db_sql = f"CREATE DATABASE IF NOT EXISTS {db};"

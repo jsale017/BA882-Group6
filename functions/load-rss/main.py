@@ -21,7 +21,7 @@ stage_db_schema = f"{db}.stage"
 ############################################################### main task
 
 @functions_framework.http
-def task(request):
+def load_data(request):
 
     # Parse the request data
     request_json = request.get_json(silent=True)
