@@ -1,3 +1,4 @@
-google-cloud-secret-manager
-google-cloud-storage
-finnhub-python
+functions-framework==3.*
+google-cloud-secret-manager==2.7.2
+google-cloud-storage==2.5.0
+requests==2.28.1

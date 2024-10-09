@@ -1,9 +1,0 @@
-steps:
-  - name: 'python:3.10'
-    entrypoint: 'bash'
-    args:
-      - '-c'
-      - |
-        pip install --upgrade pip
-        pip install -r requirements.txt
-        functions-framework --target=finnhub-schema-setup

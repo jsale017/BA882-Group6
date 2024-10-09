@@ -1,6 +1,0 @@
-functions-framework==3.*
-google-cloud-storage==2.8.0
-google-cloud-secret-manager==2.12.4
-requests==2.28.1
-duckdb==1.0.0
-
