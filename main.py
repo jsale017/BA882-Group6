@@ -1,7 +1,7 @@
 import logging
-from google.cloud import secretmanager
-from google.cloud import storage
+from google.cloud import storage, secretmanager
 import requests
+import json
 
 # Initialize the logger
 logging.basicConfig(level=logging.INFO)
