@@ -12,7 +12,15 @@ import uuid
 # Settings
 project_id = 'financial-pipeline-group-6'
 bucket_name = 'financial-pipeline-group-6-bucket'
-finnhub_api_key = os.getenv('FINNHUB_API_KEY')
+
+def get_finnhub_api_key():
+    """Fetch the Finnhub API key from Secret Manager."""
+    client = secretmanager.SecretManagerServiceClient()
+    secret_name = "projects/financial-pipeline-group-6/secrets/FINNHUB_API_KEY2/versions/latest"
+    response = client.access_secret_version(request={"name": secret_name})
+    return response.payload.data.decode("UTF-8")
+
+finnhub_api_key = get_finnhub_api_key()
 ingest_timestamp = pd.Timestamp.now()
 
 ############################################################### helpers
@@ -23,11 +31,23 @@ def fetch_finnhub_data(symbol, from_timestamp, to_timestamp):
     
     try:
         response = requests.get(api_url)
+        response.raise_for_status()  # Raise an error for bad HTTP responses
         data = response.json()
-        if data['s'] != 'ok':
+
+        # Log the full response for debugging purposes
+        print(f"Finnhub API response: {data}")
+
+        # Ensure the 's' key is present and has value 'ok'
+        if 's' not in data or data['s'] != 'ok':
             raise ValueError(f"API returned error for symbol {symbol}: {data}")
+
         return data
+    except requests.exceptions.RequestException as e:
+        # Log any HTTP-related errors
+        print(f"HTTP request failed: {e}")
+        raise
     except Exception as e:
+        # Log any other errors
         print(f"Error fetching data from FinnHub: {e}")
         raise
 
@@ -36,6 +56,9 @@ def fetch_finnhub_data(symbol, from_timestamp, to_timestamp):
 @functions_framework.http
 def task(request):
     try:
+        # Set the ingest timestamp for this request
+        ingest_timestamp = pd.Timestamp.now()
+
         # Parse the request data
         request_json = request.get_json(silent=True)
         if not request_json:
@@ -53,6 +76,10 @@ def task(request):
 
         # Fetch data from FinnHub API
         finnhub_data = fetch_finnhub_data(symbol, from_timestamp, to_timestamp)
+
+        # Check if the data is empty
+        if not finnhub_data or not finnhub_data.get('t'):
+            return {"error": f"No data available for symbol {symbol}"}, 404
 
         # Convert the fetched data into a DataFrame
         finnhub_df = pd.DataFrame({
