@@ -1,0 +1,15 @@
+# System files
+.bash_history
+.bashrc
+.cache/
+.codeoss/
+.docker/
+.gitconfig
+.npm/
+.profile
+.redhat/
+.sudo_as_admin_successful
+.vscode/
+
+# Other untracked files (if you don't want to track them)
+README-cloudshell.txt
