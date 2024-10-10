@@ -2,7 +2,7 @@
 
 BA882 - Deploying Analytics Pipelines 
 
-1. What data feed(s) are you considering for project?
+1.What are the data feed(s) of project?
 
 The Data Feeds that we are considering for our project are the following: 
 - FinHub is a website that offers democratized financial data, providing access to real-time stocks, currencies, and cryptocurrencies through an API. FinHub has a limit of 30 API calls per second, ensuring that we will have continuous access to real-time stock data throughout the entire project.
@@ -13,7 +13,7 @@ c.	Github: https://github.com/Finnhub-Stock-API/finnhub-python
 d.	Website Link: https://www.alphavantage.co/#page-top
 e.	Documentation of API: https://www.alphavantage.co/documentation/
 
-2. How often do the data get updated (i.e. new records are available and need to be added to your data warehouse)
+2. How often does the data get updated (i.e. new records are available and need to be added to your data warehouse)
 
 - FinHub and Alpha Vantage data are updated every second, allowing users to access real-time US market data.
 
@@ -31,8 +31,7 @@ e.	Documentation of API: https://www.alphavantage.co/documentation/
 
   Once data is collected from sources like the Alpha Vantage API, we will focus on optimizing pipeline efficiency. We will leverage machine learning models to forecast stock prices and market trends based on real-time and historical data. Furthermore, we plan to filter and segment data into meaningful feature clusters, allowing financial advisors to formulate more accurate investment strategies.
 
-
-Flow Diagram of Project:
+\n\nProject Pipeline Data Flow Diagram:
 ![image](https://github.com/user-attachments/assets/6cfc009a-c005-4e39-9fef-6d9c2df94425)
 
 
