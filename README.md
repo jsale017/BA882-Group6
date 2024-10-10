@@ -32,3 +32,8 @@ e.	Documentation of API: https://www.alphavantage.co/documentation/
   Once data is collected from sources like the Alpha Vantage API, we will focus on optimizing pipeline efficiency. We will leverage machine learning models to forecast stock prices and market trends based on real-time and historical data. Furthermore, we plan to filter and segment data into meaningful feature clusters, allowing financial advisors to formulate more accurate investment strategies.
 
 
+Flow Diagram of Project:
+![image](https://github.com/user-attachments/assets/6cfc009a-c005-4e39-9fef-6d9c2df94425)
+
+
+
