@@ -1,4 +1,4 @@
-# <img src = "https://sigmoid-image.s3.amazonaws.com/wp-content/uploads/2022/02/22112809/Build-a-Winning-Data-Pipeline-Architecture-on-the-Cloud-for-CPG-1.gif" alt = "Moving Header" width="600px">
+# <img src = "https://sigmoid-image.s3.amazonaws.com/wp-content/uploads/2022/02/22112809/Build-a-Winning-Data-Pipeline-Architecture-on-the-Cloud-for-CPG-1.gif" alt = "Moving Header" width="1000px">
 
 # Predictive End-to-End Analytics Pipeline for Financial APIs
 
