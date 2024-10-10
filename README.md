@@ -1,3 +1,5 @@
+#[!Header Animation](https://sigmoid-image.s3.amazonaws.com/wp-content/uploads/2022/02/22112809/Build-a-Winning-Data-Pipeline-Architecture-on-the-Cloud-for-CPG-1.gif)
+
 # Predictive End-to-End Analytics Pipeline for Financial APIs
 
 **BA882 - Deploying Analytics Pipelines **
