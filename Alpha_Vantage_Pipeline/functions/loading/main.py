@@ -4,10 +4,10 @@ from google.cloud import bigquery, storage
 import pandas as pd
 import functions_framework
 
-# Initialize the logger
+# Initializing logger
 logging.basicConfig(level=logging.INFO)
 
-# Function to download parsed data from GCS
+# Obtaining parsed data from GCS
 def download_from_gcs(bucket_name, file_name):
     client = storage.Client()
     bucket = client.bucket(bucket_name)
@@ -16,30 +16,27 @@ def download_from_gcs(bucket_name, file_name):
     logging.info(f"Downloaded data from {bucket_name}/{file_name}")
     return json.loads(raw_data)
 
-# Function to load data into BigQuery
+# Loading data into BigQuery
 def load_data_to_bigquery(data, table_id):
-    # Convert the parsed data to a Pandas DataFrame
+    # Converting parsed data to DataFrame
     df = pd.DataFrame(data)
     
     # Ensure the numeric columns are properly converted to float
     numeric_columns = ['open', 'high', 'low', 'close', 'volume']
     
-    # Convert columns to numeric, coercing errors to NaN (if any strings are found)
+    # Converting columns to numeric, coercing errors to NaN (if any strings are found)
     df[numeric_columns] = df[numeric_columns].apply(pd.to_numeric, errors='coerce')
     
-    # Initialize BigQuery client
+    # Initializing BigQuery client
     client = bigquery.Client()
     
-    # Define job configuration for the load job
     job_config = bigquery.LoadJobConfig(
-        write_disposition="WRITE_APPEND",  # Appends data to the table if it exists
-        autodetect=True,  # Automatically infer the schema
+        write_disposition="WRITE_APPEND",  # Appending data to the table
+        autodetect=True,  # Automatically infering the schema
     )
     
-    # Load data to BigQuery
+    # Loading data to BigQuery
     job = client.load_table_from_dataframe(df, table_id, job_config=job_config)
-    
-    # Wait for the job to complete
     job.result()
     logging.info(f"Loaded {len(df)} rows into {table_id}.")
 
@@ -56,10 +53,10 @@ def load_data(request):
         table_id = 'finnhub-pipeline-ba882.financial_data.stock_prices'
 
         
-        # Download the parsed data from GCS
+        # Downloading the parsed data from GCS
         data = download_from_gcs(bucket_name, file_name)
         
-        # Load the parsed data into BigQuery
+        # Loading the data into BigQuery
         load_data_to_bigquery(data, table_id)
         
         return "Data successfully loaded into BigQuery.", 200

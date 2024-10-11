@@ -1,25 +1,23 @@
-# extract_data.py
-
 import logging
 from google.cloud import storage, secretmanager
 import requests
 import json
 
-# Initialize the logger
+# Initializing logger
 logging.basicConfig(level=logging.INFO)
 
-# Function to get Alpha Vantage API key from Secret Manager
+# Getting Alpha Vantage API key from Secret Manager
 def get_alphavantage_api_key():
     client = secretmanager.SecretManagerServiceClient()
     name = "projects/finnhub-pipeline-ba882/secrets/alphavantage-api-key/versions/latest"
     response = client.access_secret_version(request={"name": name})
     return response.payload.data.decode("UTF-8")
 
-# Function to upload raw data to GCS
+# Uploading raw data to Google Cloud
 def upload_to_gcs(bucket_name, data):
     client = storage.Client()
     bucket = client.bucket(bucket_name)
-    blob = bucket.blob('raw_financial_data.json')  # Changed to raw data
+    blob = bucket.blob('raw_financial_data.json')  # Saving the extracted data as raw_financial_data.json
     blob.upload_from_string(data)
     logging.info(f"Uploaded raw data to {bucket_name}/raw_financial_data.json")
 
@@ -28,11 +26,11 @@ def extract_data(request):
     logging.info("Starting data extraction")
 
     try:
-        # Get API key
+        # Getting API key
         alphavantage_api_key = get_alphavantage_api_key()
         logging.info("Successfully retrieved API key")
 
-        # Fetch stock data from Alpha Vantage API
+        # Fetching stock data from Alpha Vantage API
         url = f"https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=AAPL&apikey={alphavantage_api_key}"
         response = requests.get(url)
 
@@ -40,7 +38,7 @@ def extract_data(request):
             logging.info("Data fetched successfully from Alpha Vantage")
             stock_data = response.json()
 
-            # Upload raw stock data to GCS
+            # Uploading raw stock data to GCS
             upload_to_gcs('finnhub-financial-data', json.dumps(stock_data))
             logging.info("Raw data upload complete")
             return "Data extraction and upload complete.", 200
