@@ -14,12 +14,12 @@ def get_alphavantage_api_key():
     return response.payload.data.decode("UTF-8")
 
 # Uploading raw data to Google Cloud
-def upload_to_gcs(bucket_name, data):
+def upload_to_gcs(bucket_name, file_name, data):
     client = storage.Client()
     bucket = client.bucket(bucket_name)
-    blob = bucket.blob('raw_financial_data.json')  # Saving the extracted data as raw_financial_data.json
+    blob = bucket.blob(file_name)
     blob.upload_from_string(data)
-    logging.info(f"Uploaded raw data to {bucket_name}/raw_financial_data.json")
+    logging.info(f"Uploaded raw data for {file_name} to {bucket_name}")
 
 # Main function to extract and upload raw data
 def extract_data(request):
@@ -30,21 +30,24 @@ def extract_data(request):
         alphavantage_api_key = get_alphavantage_api_key()
         logging.info("Successfully retrieved API key")
 
+        stock_symbols = ['AAPL', 'NFLX', 'MSFT', 'NVDA', 'AMZN']
+
         # Fetching stock data from Alpha Vantage API
-        url = f"https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=AAPL&apikey={alphavantage_api_key}"
-        response = requests.get(url)
+        for symbol in stock_symbols:
+            url = f"https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol={symbol}&apikey={alphavantage_api_key}"
+            response = requests.get(url)
 
-        if response.status_code == 200:
-            logging.info("Data fetched successfully from Alpha Vantage")
-            stock_data = response.json()
+            if response.status_code == 200:
+                logging.info(f"Data fetched successfully for {symbol}")
+                stock_data = response.json()
 
-            # Uploading raw stock data to GCS
-            upload_to_gcs('finnhub-financial-data', json.dumps(stock_data))
-            logging.info("Raw data upload complete")
-            return "Data extraction and upload complete.", 200
-        else:
-            logging.error(f"Failed to fetch data from Alpha Vantage. Status code: {response.status_code}")
-            return f"Error: Failed to fetch data. Status code: {response.status_code}", 500
+                # Upload raw stock data to GCS with stock symbol in the filename
+                upload_to_gcs('finnhub-financial-data', f'raw_{symbol}_data.json', json.dumps(stock_data))
+            else:
+                logging.error(f"Failed to fetch data for {symbol}. Status code: {response.status_code}")
+
+        logging.info("All data extraction and uploads complete")
+        return "Data extraction and upload complete.", 200
 
     except Exception as e:
         logging.error(f"Error during data extraction: {str(e)}")

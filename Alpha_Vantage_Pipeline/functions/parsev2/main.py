@@ -8,29 +8,27 @@ import functions_framework
 logging.basicConfig(level=logging.INFO)
 
 # Downloading raw data from Google Cloud
-def download_from_gcs(bucket_name):
+def download_from_gcs(bucket_name, file_name):
     client = storage.Client()
     bucket = client.bucket(bucket_name)
-    blob = bucket.blob('raw_financial_data.json')  # Grabbing raw_financial_data.json
+    blob = bucket.blob(file_name)  # Grabbing raw data per stock
     raw_data = blob.download_as_string()
-    logging.info(f"Downloaded raw data from {bucket_name}/raw_financial_data.json")
+    logging.info(f"Downloaded raw data from {bucket_name}/{file_name}")
     return json.loads(raw_data)
 
 # Uploading parsed data to GCS
-def upload_parsed_data_to_gcs(bucket_name, data):
+def upload_parsed_data_to_gcs(bucket_name, file_name, data):
     client = storage.Client()
     bucket = client.bucket(bucket_name)
-    blob = bucket.blob('parsed_financial_data.json')  # Uploading parsed data as parsed_financial_data.json
+    blob = bucket.blob(file_name)  # Uploading parsed data
     blob.upload_from_string(data)
-    logging.info(f"Uploaded parsed data to {bucket_name}/parsed_financial_data.json")
+    logging.info(f"Uploaded parsed data to {bucket_name}/{file_name}")
 
 # Parsing raw Alpha Vantage data
 def parse_stock_data(raw_data):
     try:
         # Extracting  Daily Time Series
         time_series = raw_data.get("Time Series (Daily)", {})
-
-        # Create a list of parsed records
         parsed_data = []
         
         # Looping through each date and extract key information
@@ -58,22 +56,20 @@ def parse_data(request):
     logging.info("Starting data parsing")
 
     try:
-        # Downloading raw data
-        raw_data = download_from_gcs('finnhub-financial-data')
+        stock_symbols = ['AAPL', 'NFLX', 'MSFT', 'NVDA', 'AMZN']
 
-        # Parsing the raw data
-        parsed_data = parse_stock_data(raw_data)
-        if parsed_data is not None:
-            # Converting parsed data to JSON
-            parsed_data_json = json.dumps(parsed_data)
+        for symbol in stock_symbols:
+            file_name = f'raw_{symbol}_data.json'
+            raw_data = download_from_gcs('finnhub-financial-data', file_name)
 
-            # Uploading parsed data to GCS
-            upload_parsed_data_to_gcs('finnhub-financial-data', parsed_data_json)
-            logging.info("Parsed data upload complete")
-            return "Data parsing and upload complete.", 200
-        else:
-            logging.error("Parsing failed")
-            return "Error: Parsing failed.", 500
+            # Parsing the raw data
+            parsed_data = parse_stock_data(raw_data)
+            if parse_data is not None:
+                parsed_file_name = f'parsed_{symbol}_data.json'
+                upload_parsed_data_to_gcs('finnhub-financial-data', parsed_file_name, json.dumps(parsed_data))
+        
+        logging.info("All data parsing and uploads complete")
+        return "Data parsing and upload complete.", 200
 
     except Exception as e:
         logging.error(f"Error during data parsing: {str(e)}")

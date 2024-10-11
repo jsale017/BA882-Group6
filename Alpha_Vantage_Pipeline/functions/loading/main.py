@@ -20,11 +20,7 @@ def download_from_gcs(bucket_name, file_name):
 def load_data_to_bigquery(data, table_id):
     # Converting parsed data to DataFrame
     df = pd.DataFrame(data)
-    
-    # Ensure the numeric columns are properly converted to float
     numeric_columns = ['open', 'high', 'low', 'close', 'volume']
-    
-    # Converting columns to numeric, coercing errors to NaN (if any strings are found)
     df[numeric_columns] = df[numeric_columns].apply(pd.to_numeric, errors='coerce')
     
     # Initializing BigQuery client
@@ -43,22 +39,30 @@ def load_data_to_bigquery(data, table_id):
 # Main function to handle the HTTP request
 @functions_framework.http
 def load_data(request):
-    logging.info("Starting data load process")
+    logging.info("Starting data load process for multiple stocks")
 
     try:
+        stock_symbols = ['AAPL', 'NFLX', 'MSFT', 'NVDA', 'AMZN']
         bucket_name = 'finnhub-financial-data'
-        file_name = 'parsed_financial_data.json'  # Grabbing parsed data from GCS
-        
-        # Setting up BigQuery Table ID
-        table_id = 'finnhub-pipeline-ba882.financial_data.stock_prices'
 
-        
-        # Downloading the parsed data from GCS
-        data = download_from_gcs(bucket_name, file_name)
-        
-        # Loading the data into BigQuery
-        load_data_to_bigquery(data, table_id)
-        
+        for symbol in stock_symbols:
+            file_name = f'parsed_{symbol}_data.json'
+            logging.info(f"Processing {symbol}: Checking file {file_name} in GCS...")
+
+            # Check if the file exists in GCS
+            try:
+                data = download_from_gcs(bucket_name, file_name)
+                logging.info(f"Successfully downloaded parsed data for {symbol}.")
+                # Set BigQuery table for each stock
+                table_id = f'finnhub-pipeline-ba882.financial_data.{symbol.lower()}_prices'
+                # Load the parsed data into BigQuery
+                load_data_to_bigquery(data, table_id)
+                logging.info(f"Loaded data into {table_id} for {symbol}.")
+            except Exception as e:
+                logging.error(f"Error processing {symbol}: {str(e)}")
+                continue
+
+        logging.info("All data successfully loaded into BigQuery")
         return "Data successfully loaded into BigQuery.", 200
 
     except Exception as e:
