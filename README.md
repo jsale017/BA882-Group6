@@ -7,10 +7,6 @@
 1. What are the data feed(s) of project?
 
 The Data Feeds that we are considering for our project are the following: 
-- FinHub is a website that offers democratized financial data, providing access to real-time stocks, currencies, and cryptocurrencies through an API. FinHub has a limit of 30 API calls per second, ensuring that we will have continuous access to real-time stock data throughout the entire project.
-a.	Website Link: https://finnhub.io/dashboard
-b.	Documentation of API: https://finnhub.io/docs/api/introduction 
-c.	Github: https://github.com/Finnhub-Stock-API/finnhub-python
 - Alpha Vantage is a website that offers real-time and historical financial market data through APIs and spreadsheets. The API provides data on asset classes such as stocks, ETFs, mutual funds, and foreign commodities. Additionally, it covers pre-market and post-market hours.
 d.	Website Link: https://www.alphavantage.co/#page-top
 e.	Documentation of API: https://www.alphavantage.co/documentation/
@@ -34,7 +30,7 @@ e.	Documentation of API: https://www.alphavantage.co/documentation/
   Once data is collected from sources like the Alpha Vantage API, we will focus on optimizing pipeline efficiency. We will leverage machine learning models to forecast stock prices and market trends based on real-time and historical data. Furthermore, we plan to filter and segment data into meaningful feature clusters, allowing financial advisors to formulate more accurate investment strategies.
 
 ## Project Pipeline Data Flow Diagram:
-![image](https://github.com/user-attachments/assets/6cfc009a-c005-4e39-9fef-6d9c2df94425)
+
 
 
 
