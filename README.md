@@ -13,7 +13,7 @@ e.	Documentation of API: https://www.alphavantage.co/documentation/
 
 2. How often does the data get updated (i.e. new records are available and need to be added to your data warehouse)
 
-- FinHub and Alpha Vantage data are updated every second, allowing users to access real-time US market data.
+- Alpha Vantage data are updated every second, allowing users to access real-time US market data.
 
 3. Why are you interested in exploring these data feed(s) for your project?
 
