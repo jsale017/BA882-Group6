@@ -20,12 +20,14 @@ def setup_schema():
         logging.error(f"Error creating dataset {dataset_id}: {e}")
         raise
 
-    # Creating tables for each stock symbol
+    # Creating tables for each stock symbol and ensuring schema includes 'symbol'
     for symbol in stock_symbols:
         table_id = f"{project_id}.{dataset_id}.{symbol.lower()}_prices"
+        # Try creating the table if it doesn't exist
         create_table_sql = f"""
         CREATE TABLE IF NOT EXISTS `{table_id}` (
-            date STRING,
+            symbol STRING,
+            `date` STRING, 
             open FLOAT64,
             high FLOAT64,
             low FLOAT64,
@@ -38,6 +40,20 @@ def setup_schema():
             logging.info(f"Table {symbol.lower()}_prices created or exists.")
         except Exception as e:
             logging.error(f"Error creating table {symbol.lower()}_prices: {e}")
+            raise
+
+        # Check if 'symbol' column exists, and if not, alter the table schema
+        try:
+            table = bq_client.get_table(table_id)  # Fetch the table object
+            if 'symbol' not in [field.name for field in table.schema]:
+                alter_table_sql = f"""
+                ALTER TABLE `{table_id}`
+                ADD COLUMN symbol STRING
+                """
+                bq_client.query(alter_table_sql).result()
+                logging.info(f"'symbol' column added to {symbol.lower()}_prices table.")
+        except Exception as e:
+            logging.error(f"Error altering table {symbol.lower()}_prices to add 'symbol' column: {e}")
             raise
 
 @functions_framework.http
