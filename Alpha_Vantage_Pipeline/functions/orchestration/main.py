@@ -31,14 +31,14 @@ def download_from_gcs(bucket_name, file_name):
     logging.info(f"Downloaded {file_name} from bucket {bucket_name}")
     return json.loads(raw_data)
 
-# Parse stock data
-def parse_stock_data(raw_data):
+# Parse stock data and include the stock symbol in the parsed records
+def parse_stock_data(raw_data, symbol):  
     try:
         time_series = raw_data.get("Time Series (Daily)", {})
         parsed_data = []
         for date, daily_data in time_series.items():
             parsed_record = {
-                "symbol": symbol,
+                "symbol": symbol,  # Include the stock symbol
                 "date": date,
                 "open": daily_data.get("1. open"),
                 "high": daily_data.get("2. high"),
@@ -47,10 +47,11 @@ def parse_stock_data(raw_data):
                 "volume": daily_data.get("5. volume"),
             }
             parsed_data.append(parsed_record)
-        logging.info("Successfully parsed stock data")
+        logging.info(f"Successfully parsed stock data for {symbol}")
         return parsed_data
+
     except KeyError as e:
-        logging.error(f"KeyError during parsing: {str(e)}")
+        logging.error(f"KeyError during parsing for {symbol}: {str(e)}")
         return None
 
 # Extract task logic
