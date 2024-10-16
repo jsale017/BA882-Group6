@@ -38,6 +38,7 @@ def parse_stock_data(raw_data):
         parsed_data = []
         for date, daily_data in time_series.items():
             parsed_record = {
+                "symbol": symbol,
                 "date": date,
                 "open": daily_data.get("1. open"),
                 "high": daily_data.get("2. high"),
@@ -88,7 +89,7 @@ def parse_data():
             raw_file_name = f'raw_{symbol}_data.json'
             raw_data = download_from_gcs(bucket_name, raw_file_name)
 
-            parsed_data = parse_stock_data(raw_data)
+            parsed_data = parse_stock_data(raw_data, symbol)
             if parsed_data:
                 parsed_file_name = f'parsed_{symbol}_data.json'
                 upload_to_gcs(bucket_name, parsed_file_name, json.dumps(parsed_data))
@@ -116,6 +117,10 @@ def load_data():
             df = pd.DataFrame(parsed_data)
             numeric_columns = ['open', 'high', 'low', 'close', 'volume']
             df[numeric_columns] = df[numeric_columns].apply(pd.to_numeric, errors='coerce')
+            df['symbol'] = symbol
+
+            df = df.drop_duplicates(subset=['date'])
+            logging.info(f"{len(df)} rows remaining after dropping duplicates for {symbol}")
 
             table_id = f'finnhub-pipeline-ba882.financial_data.{symbol.lower()}_prices'
             client = bigquery.Client()
