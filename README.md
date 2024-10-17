@@ -5,8 +5,8 @@
 
 ### Data Feeds Utilized in the Project
 - Alpha Vantage is a website that offers real-time and historical financial market data through APIs and spreadsheets. The API provides data on asset classes such as stocks, ETFs, mutual funds, and foreign commodities. Additionally, it covers pre-market and post-market hours.
-d.	Website Link: https://www.alphavantage.co/#page-top
-e.	Documentation of API: https://www.alphavantage.co/documentation/
+  - Website Link: https://www.alphavantage.co/#page-top
+  - Documentation of API: https://www.alphavantage.co/documentation/
 
 ### Data Frequency 
 - Alpha Vantage data are updated every second, allowing users to access real-time US market data.
