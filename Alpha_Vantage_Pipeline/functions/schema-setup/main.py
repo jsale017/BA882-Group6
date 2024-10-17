@@ -20,10 +20,10 @@ def setup_schema():
         logging.error(f"Error creating dataset {dataset_id}: {e}")
         raise
 
-    # Creating tables for each stock symbol and ensuring schema includes 'symbol'
+    # Creating tables for each stock symbol
     for symbol in stock_symbols:
         table_id = f"{project_id}.{dataset_id}.{symbol.lower()}_prices"
-        # Try creating the table if it doesn't exist
+
         create_table_sql = f"""
         CREATE TABLE IF NOT EXISTS `{table_id}` (
             symbol STRING,
@@ -42,9 +42,8 @@ def setup_schema():
             logging.error(f"Error creating table {symbol.lower()}_prices: {e}")
             raise
 
-        # Check if 'symbol' column exists, and if not, alter the table schema
         try:
-            table = bq_client.get_table(table_id)  # Fetch the table object
+            table = bq_client.get_table(table_id)
             if 'symbol' not in [field.name for field in table.schema]:
                 alter_table_sql = f"""
                 ALTER TABLE `{table_id}`

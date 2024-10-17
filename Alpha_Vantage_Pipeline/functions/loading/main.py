@@ -23,23 +23,26 @@ def load_data_to_bigquery(data, staging_table_id, final_table_id):
     numeric_columns = ['open', 'high', 'low', 'close', 'volume']
     df[numeric_columns] = df[numeric_columns].apply(pd.to_numeric, errors='coerce')
 
-    # Initializing BigQuery client
+    df = df.dropna(subset=['symbol'])
+
+    df = df.drop_duplicates(subset=['date', 'open', 'close', 'high', 'low', 'volume', 'symbol'])
+
     client = bigquery.Client()
 
-    # Load configuration for the staging table
+    # Loading configuration for the staging table
     job_config = bigquery.LoadJobConfig(
-        write_disposition="WRITE_TRUNCATE",  # Replace the staging table
-        autodetect=True,  # Automatically infer schema
+        write_disposition="WRITE_TRUNCATE",  # Replacing the staging table
+        autodetect=True,
     )
 
-    # Load data into the staging table
+    # Loading data into the staging table
     logging.info(f"Loading data into staging table: {staging_table_id}")
     job = client.load_table_from_dataframe(df, staging_table_id, job_config=job_config)
-    job.result()  # Wait for the load job to complete
+    job.result()
 
     logging.info(f"Successfully loaded data into {staging_table_id}")
 
-    # MERGE query to merge data from the staging table to the final table
+    # MERGE query
     merge_query = f"""
     MERGE `{final_table_id}` T
     USING `{staging_table_id}` S
@@ -50,16 +53,16 @@ def load_data_to_bigquery(data, staging_table_id, final_table_id):
         T.high = S.high,
         T.low = S.low,
         T.close = S.close,
-        T.volume = S.volume
+        T.volume = S.volume,
+        T.symbol = S.symbol
     WHEN NOT MATCHED THEN
-      INSERT (date, open, high, low, close, volume)
-      VALUES (S.date, S.open, S.high, S.low, S.close, S.volume)
+      INSERT (date, open, high, low, close, volume, symbol)
+      VALUES (S.date, S.open, S.high, S.low, S.close, S.volume, S.symbol)
     """
 
-    # Execute the MERGE query
     logging.info(f"Merging data from {staging_table_id} into {final_table_id}")
     query_job = client.query(merge_query)
-    query_job.result()  # Wait for the query to complete
+    query_job.result()
 
     logging.info(f"Successfully merged data into {final_table_id}")
 
@@ -77,15 +80,15 @@ def load_data(request):
             logging.info(f"Processing {symbol}: Checking file {file_name} in GCS...")
 
             try:
-                # Download the parsed data from GCS
+                # Downloading parsed data from GCS
                 data = download_from_gcs(bucket_name, file_name)
                 logging.info(f"Successfully downloaded parsed data for {symbol}.")
 
-                # Define the staging and final table IDs
+                # Defining the staging and final table
                 staging_table_id = f'finnhub-pipeline-ba882.financial_data.{symbol.lower()}_prices_staging'
                 final_table_id = f'finnhub-pipeline-ba882.financial_data.{symbol.lower()}_prices'
 
-                # Load data to the staging table and merge it into the final table
+                # Loading data to the staging table and merging it into the final table
                 load_data_to_bigquery(data, staging_table_id, final_table_id)
 
             except Exception as e:

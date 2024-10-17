@@ -7,14 +7,14 @@ import json
 from google.cloud import storage, secretmanager, bigquery
 import pandas as pd
 
-# Helper function to get API key from Secret Manager
+# Helper Function to get API key
 def get_alphavantage_api_key():
     client = secretmanager.SecretManagerServiceClient()
     secret_name = "projects/finnhub-pipeline-ba882/secrets/alphavantage-api-key/versions/latest"
     response = client.access_secret_version(request={"name": secret_name})
     return response.payload.data.decode("UTF-8")
 
-# Helper function to upload raw data to GCS
+# Helper function to Upload Raw Data to GCS
 def upload_to_gcs(bucket_name, file_name, data):
     client = storage.Client()
     bucket = client.bucket(bucket_name)
@@ -22,7 +22,7 @@ def upload_to_gcs(bucket_name, file_name, data):
     blob.upload_from_string(data)
     logging.info(f"Uploaded {file_name} to bucket {bucket_name}")
 
-# Download from GCS
+# Downloading from GCS
 def download_from_gcs(bucket_name, file_name):
     client = storage.Client()
     bucket = client.bucket(bucket_name)
@@ -31,14 +31,14 @@ def download_from_gcs(bucket_name, file_name):
     logging.info(f"Downloaded {file_name} from bucket {bucket_name}")
     return json.loads(raw_data)
 
-# Parse stock data and include the stock symbol in the parsed records
+# Parsing stock data
 def parse_stock_data(raw_data, symbol):  
     try:
         time_series = raw_data.get("Time Series (Daily)", {})
         parsed_data = []
         for date, daily_data in time_series.items():
             parsed_record = {
-                "symbol": symbol,  # Include the stock symbol
+                "symbol": symbol,
                 "date": date,
                 "open": daily_data.get("1. open"),
                 "high": daily_data.get("2. high"),
@@ -54,7 +54,7 @@ def parse_stock_data(raw_data, symbol):
         logging.error(f"KeyError during parsing for {symbol}: {str(e)}")
         return None
 
-# Extract task logic
+# Extract data
 def extract_data():
     logging.info("Starting data extraction")
     try:
@@ -79,7 +79,7 @@ def extract_data():
         logging.error(f"Error during extraction: {str(e)}")
         raise
 
-# Parse task logic
+# Parsing Data
 def parse_data():
     logging.info("Starting data parsing")
     try:
@@ -104,7 +104,7 @@ def parse_data():
         logging.error(f"Error during parsing: {str(e)}")
         raise
 
-# Load task logic
+# Loading Data to BigQuery
 def load_data():
     logging.info("Starting loading data into BigQuery")
     try:
@@ -138,7 +138,37 @@ def load_data():
         logging.error(f"Error during data load: {str(e)}")
         raise
 
-# Default DAG arguments
+# Creating a union of all stocks
+def union_all_stocks():
+    logging.info("Starting union of all stock tables into one")
+
+    try:
+        client = bigquery.Client()
+        union_table_id = 'finnhub-pipeline-ba882.financial_data.all_stocks_prices'
+
+        union_query = f"""
+        CREATE OR REPLACE TABLE `{union_table_id}` AS
+        SELECT * FROM `finnhub-pipeline-ba882.financial_data.aapl_prices`
+        UNION ALL
+        SELECT * FROM `finnhub-pipeline-ba882.financial_data.nflx_prices`
+        UNION ALL
+        SELECT * FROM `finnhub-pipeline-ba882.financial_data.msft_prices`
+        UNION ALL
+        SELECT * FROM `finnhub-pipeline-ba882.financial_data.nvda_prices`
+        UNION ALL
+        SELECT * FROM `finnhub-pipeline-ba882.financial_data.amzn_prices`
+        """
+
+        logging.info(f"Executing union query to create or update {union_table_id}")
+        query_job = client.query(union_query)
+        query_job.result()
+
+        logging.info(f"Successfully created or updated {union_table_id}")
+
+    except Exception as e:
+        logging.error(f"Error during union operation: {str(e)}")
+        raise
+
 default_args = {
     'owner': 'airflow',
     'depends_on_past': False,
@@ -146,15 +176,15 @@ default_args = {
     'retries': 1,
 }
 
-# Define DAG
+# DAG
 dag = DAG(
     'finance_data_pipeline',
     default_args=default_args,
-    description='Orchestrate extraction, parsing, and loading of stock data',
+    description='Orchestrate extraction, parsing, loading, and union of stock data',
     schedule_interval='@daily',
 )
 
-# Define tasks
+# Defining tasks for worflow extract, parse, load, and union
 extract_task = PythonOperator(
     task_id='extract_data',
     python_callable=extract_data,
@@ -173,5 +203,10 @@ load_task = PythonOperator(
     dag=dag,
 )
 
-# Set task dependencies
-extract_task >> parse_task >> load_task
+union_task = PythonOperator(
+    task_id='union_all_stocks',
+    python_callable=union_all_stocks,
+    dag=dag,
+)
+
+extract_task >> parse_task >> load_task >> union_task

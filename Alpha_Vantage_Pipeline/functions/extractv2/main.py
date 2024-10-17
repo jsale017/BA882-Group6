@@ -6,7 +6,7 @@ import json
 # Initializing logger
 logging.basicConfig(level=logging.INFO)
 
-# Getting Alpha Vantage API key from Secret Manager
+# Getting Alpha Vantage API key
 def get_alphavantage_api_key():
     client = secretmanager.SecretManagerServiceClient()
     name = "projects/finnhub-pipeline-ba882/secrets/alphavantage-api-key/versions/latest"
