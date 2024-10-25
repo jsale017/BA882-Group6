@@ -1,20 +1,20 @@
-from airflow import DAG
-from airflow.operators.python_operator import PythonOperator
-from airflow.utils.dates import days_ago
+from prefect import flow, task
 import logging
 import requests
 import json
 from google.cloud import storage, secretmanager, bigquery
 import pandas as pd
 
-# Helper Function to get API key
+# Task to get API key from Google Secret Manager
+@task
 def get_alphavantage_api_key():
     client = secretmanager.SecretManagerServiceClient()
     secret_name = "projects/finnhub-pipeline-ba882/secrets/alphavantage-api-key/versions/latest"
     response = client.access_secret_version(request={"name": secret_name})
     return response.payload.data.decode("UTF-8")
 
-# Helper function to Upload Raw Data to GCS
+# Task to upload raw data to Google Cloud Storage
+@task
 def upload_to_gcs(bucket_name, file_name, data):
     client = storage.Client()
     bucket = client.bucket(bucket_name)
@@ -22,7 +22,8 @@ def upload_to_gcs(bucket_name, file_name, data):
     blob.upload_from_string(data)
     logging.info(f"Uploaded {file_name} to bucket {bucket_name}")
 
-# Downloading from GCS
+# Task to download data from Google Cloud Storage
+@task
 def download_from_gcs(bucket_name, file_name):
     client = storage.Client()
     bucket = client.bucket(bucket_name)
@@ -31,8 +32,9 @@ def download_from_gcs(bucket_name, file_name):
     logging.info(f"Downloaded {file_name} from bucket {bucket_name}")
     return json.loads(raw_data)
 
-# Parsing stock data
-def parse_stock_data(raw_data, symbol):  
+# Task to parse stock data
+@task
+def parse_stock_data(raw_data, symbol):
     try:
         time_series = raw_data.get("Time Series (Daily)", {})
         parsed_data = []
@@ -49,164 +51,101 @@ def parse_stock_data(raw_data, symbol):
             parsed_data.append(parsed_record)
         logging.info(f"Successfully parsed stock data for {symbol}")
         return parsed_data
-
     except KeyError as e:
         logging.error(f"KeyError during parsing for {symbol}: {str(e)}")
         return None
 
-# Extract data
-def extract_data():
-    logging.info("Starting data extraction")
-    try:
-        api_key = get_alphavantage_api_key()
-        stock_symbols = ['AAPL', 'NFLX', 'MSFT', 'NVDA', 'AMZN']
-        bucket_name = 'finnhub-financial-data'
+# Task to extract data from Alpha Vantage API
+@task
+def extract_data(api_key):
+    stock_symbols = ['AAPL', 'NFLX', 'MSFT', 'NVDA', 'AMZN']
+    bucket_name = 'finnhub-financial-data'
+    
+    for symbol in stock_symbols:
+        url = f"https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol={symbol}&apikey={api_key}"
+        response = requests.get(url)
 
-        for symbol in stock_symbols:
-            url = f"https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol={symbol}&apikey={api_key}"
-            response = requests.get(url)
+        if response.status_code == 200:
+            stock_data = response.json()
+            file_name = f'raw_{symbol}_data.json'
+            upload_to_gcs(bucket_name, file_name, json.dumps(stock_data))
+            logging.info(f"Fetched and uploaded data for {symbol}")
+        else:
+            logging.error(f"Failed to fetch data for {symbol}. Status code: {response.status_code}")
 
-            if response.status_code == 200:
-                stock_data = response.json()
-                file_name = f'raw_{symbol}_data.json'
-                upload_to_gcs(bucket_name, file_name, json.dumps(stock_data))
-                logging.info(f"Fetched and uploaded data for {symbol}")
-            else:
-                logging.error(f"Failed to fetch data for {symbol}. Status code: {response.status_code}")
-        logging.info("Data extraction completed successfully")
-
-    except Exception as e:
-        logging.error(f"Error during extraction: {str(e)}")
-        raise
-
-# Parsing Data
+# Task to parse and upload parsed data to GCS
+@task
 def parse_data():
-    logging.info("Starting data parsing")
-    try:
-        stock_symbols = ['AAPL', 'NFLX', 'MSFT', 'NVDA', 'AMZN']
-        bucket_name = 'finnhub-financial-data'
+    stock_symbols = ['AAPL', 'NFLX', 'MSFT', 'NVDA', 'AMZN']
+    bucket_name = 'finnhub-financial-data'
+    
+    for symbol in stock_symbols:
+        raw_file_name = f'raw_{symbol}_data.json'
+        raw_data = download_from_gcs(bucket_name, raw_file_name)
+        parsed_data = parse_stock_data(raw_data, symbol)
 
-        for symbol in stock_symbols:
-            raw_file_name = f'raw_{symbol}_data.json'
-            raw_data = download_from_gcs(bucket_name, raw_file_name)
-
-            parsed_data = parse_stock_data(raw_data, symbol)
-            if parsed_data:
-                parsed_file_name = f'parsed_{symbol}_data.json'
-                upload_to_gcs(bucket_name, parsed_file_name, json.dumps(parsed_data))
-                logging.info(f"Parsed data uploaded for {symbol}")
-            else:
-                logging.error(f"No data parsed for {symbol}")
-
-        logging.info("All data parsing and uploads completed successfully")
-
-    except Exception as e:
-        logging.error(f"Error during parsing: {str(e)}")
-        raise
-
-# Loading Data to BigQuery
-def load_data():
-    logging.info("Starting loading data into BigQuery")
-    try:
-        stock_symbols = ['AAPL', 'NFLX', 'MSFT', 'NVDA', 'AMZN']
-        bucket_name = 'finnhub-financial-data'
-
-        for symbol in stock_symbols:
+        if parsed_data:
             parsed_file_name = f'parsed_{symbol}_data.json'
-            parsed_data = download_from_gcs(bucket_name, parsed_file_name)
+            upload_to_gcs(bucket_name, parsed_file_name, json.dumps(parsed_data))
+            logging.info(f"Parsed data uploaded for {symbol}")
+        else:
+            logging.error(f"No data parsed for {symbol}")
 
-            df = pd.DataFrame(parsed_data)
-            numeric_columns = ['open', 'high', 'low', 'close', 'volume']
-            df[numeric_columns] = df[numeric_columns].apply(pd.to_numeric, errors='coerce')
-            df['symbol'] = symbol
+# Task to load data into BigQuery
+@task
+def load_data_to_bigquery(symbol, parsed_data):
+    logging.info(f"Loading parsed data for {symbol} into BigQuery")
 
-            df = df.drop_duplicates(subset=['date'])
-            logging.info(f"{len(df)} rows remaining after dropping duplicates for {symbol}")
+    df = pd.DataFrame(parsed_data)
+    df['symbol'] = symbol  # Add symbol column for easier querying
 
-            table_id = f'finnhub-pipeline-ba882.financial_data.{symbol.lower()}_prices'
-            client = bigquery.Client()
-            job_config = bigquery.LoadJobConfig(
-                write_disposition="WRITE_APPEND",
-                autodetect=True,
-            )
+    # Ensure numeric columns are converted to appropriate data types
+    numeric_columns = ["open", "high", "low", "close", "volume"]
+    for column in numeric_columns:
+        df[column] = pd.to_numeric(df[column], errors='coerce')
 
-            job = client.load_table_from_dataframe(df, table_id, job_config=job_config)
-            job.result()
-            logging.info(f"Loaded {len(df)} rows into {table_id}")
+    table_id = f'finnhub-pipeline-ba882.financial_data.{symbol.lower()}_prices'
+    client = bigquery.Client()
+    job_config = bigquery.LoadJobConfig(
+        write_disposition="WRITE_APPEND",
+        autodetect=True,
+    )
 
-    except Exception as e:
-        logging.error(f"Error during data load: {str(e)}")
-        raise
+    job = client.load_table_from_dataframe(df, table_id, job_config=job_config)
+    job.result()  # Wait for the job to complete
 
-# Creating a union of all stocks
-def union_all_stocks():
-    logging.info("Starting union of all stock tables into one")
+    logging.info(f"Loaded data for {symbol} into {table_id}")
 
-    try:
-        client = bigquery.Client()
-        union_table_id = 'finnhub-pipeline-ba882.financial_data.all_stocks_prices'
+# Task to load all parsed data into BigQuery
+@task
+def load_all_data_to_bigquery():
+    stock_symbols = ['AAPL', 'NFLX', 'MSFT', 'NVDA', 'AMZN']
+    bucket_name = 'finnhub-financial-data'
+    
+    for symbol in stock_symbols:
+        parsed_file_name = f'parsed_{symbol}_data.json'
+        parsed_data = download_from_gcs(bucket_name, parsed_file_name)
+        
+        if parsed_data:
+            load_data_to_bigquery(symbol, parsed_data)
+        else:
+            logging.error(f"Failed to load data for {symbol} into BigQuery")
 
-        union_query = f"""
-        CREATE OR REPLACE TABLE `{union_table_id}` AS
-        SELECT * FROM `finnhub-pipeline-ba882.financial_data.aapl_prices`
-        UNION ALL
-        SELECT * FROM `finnhub-pipeline-ba882.financial_data.nflx_prices`
-        UNION ALL
-        SELECT * FROM `finnhub-pipeline-ba882.financial_data.msft_prices`
-        UNION ALL
-        SELECT * FROM `finnhub-pipeline-ba882.financial_data.nvda_prices`
-        UNION ALL
-        SELECT * FROM `finnhub-pipeline-ba882.financial_data.amzn_prices`
-        """
+# Main pipeline flow with timezone configuration
+@flow(name="main-pipeline")
+def main_pipeline():
+    # Step 1: Retrieve the API Key
+    api_key = get_alphavantage_api_key()
 
-        logging.info(f"Executing union query to create or update {union_table_id}")
-        query_job = client.query(union_query)
-        query_job.result()
+    # Step 2: Extract data and upload to GCS
+    extract_data(api_key)
 
-        logging.info(f"Successfully created or updated {union_table_id}")
+    # Step 3: Parse raw data and upload parsed data to GCS
+    parse_data()
 
-    except Exception as e:
-        logging.error(f"Error during union operation: {str(e)}")
-        raise
+    # Step 4: Load parsed data into BigQuery
+    load_all_data_to_bigquery()
 
-default_args = {
-    'owner': 'airflow',
-    'depends_on_past': False,
-    'start_date': days_ago(1),
-    'retries': 1,
-}
-
-# DAG
-dag = DAG(
-    'finance_data_pipeline',
-    default_args=default_args,
-    description='Orchestrate extraction, parsing, loading, and union of stock data',
-    schedule_interval='@daily',
-)
-
-# Defining tasks for worflow extract, parse, load, and union
-extract_task = PythonOperator(
-    task_id='extract_data',
-    python_callable=extract_data,
-    dag=dag,
-)
-
-parse_task = PythonOperator(
-    task_id='parse_data',
-    python_callable=parse_data,
-    dag=dag,
-)
-
-load_task = PythonOperator(
-    task_id='load_data',
-    python_callable=load_data,
-    dag=dag,
-)
-
-union_task = PythonOperator(
-    task_id='union_all_stocks',
-    python_callable=union_all_stocks,
-    dag=dag,
-)
-
-extract_task >> parse_task >> load_task >> union_task
+# Run the main pipeline flow
+if __name__ == "__main__":
+    main_pipeline()
