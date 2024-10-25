@@ -78,7 +78,8 @@ def extract_data(api_key):
 def parse_data():
     stock_symbols = ['AAPL', 'NFLX', 'MSFT', 'NVDA', 'AMZN']
     bucket_name = 'finnhub-financial-data'
-    
+    all_parsed_data = []  # List to hold all parsed data for BigQuery
+
     for symbol in stock_symbols:
         raw_file_name = f'raw_{symbol}_data.json'
         raw_data = download_from_gcs(bucket_name, raw_file_name)
@@ -88,8 +89,12 @@ def parse_data():
             parsed_file_name = f'parsed_{symbol}_data.json'
             upload_to_gcs(bucket_name, parsed_file_name, json.dumps(parsed_data))
             logging.info(f"Parsed data uploaded for {symbol}")
+            all_parsed_data.extend(parsed_data)  # Add parsed data to the list for combined table
         else:
             logging.error(f"No data parsed for {symbol}")
+
+    logging.info(f"Total parsed data entries: {len(all_parsed_data)}")
+    return all_parsed_data  # Return all parsed data for further processing
 
 # Task to load data into BigQuery
 @task
@@ -116,22 +121,33 @@ def load_data_to_bigquery(symbol, parsed_data):
 
     logging.info(f"Loaded data for {symbol} into {table_id}")
 
-# Task to load all parsed data into BigQuery
+# Task to load combined data into a BigQuery table
 @task
-def load_all_data_to_bigquery():
-    stock_symbols = ['AAPL', 'NFLX', 'MSFT', 'NVDA', 'AMZN']
-    bucket_name = 'finnhub-financial-data'
-    
-    for symbol in stock_symbols:
-        parsed_file_name = f'parsed_{symbol}_data.json'
-        parsed_data = download_from_gcs(bucket_name, parsed_file_name)
-        
-        if parsed_data:
-            load_data_to_bigquery(symbol, parsed_data)
-        else:
-            logging.error(f"Failed to load data for {symbol} into BigQuery")
+def load_combined_data_to_bigquery(all_parsed_data):
+    if all_parsed_data:
+        logging.info("Loading combined data into BigQuery")
+        df = pd.DataFrame(all_parsed_data)
 
-# Main pipeline flow with timezone configuration
+        # Ensure numeric columns are converted to appropriate data types
+        numeric_columns = ["open", "high", "low", "close", "volume"]
+        for column in numeric_columns:
+            df[column] = pd.to_numeric(df[column], errors='coerce')
+
+        combined_table_id = 'finnhub-pipeline-ba882.financial_data.all_stocks_prices'
+        client = bigquery.Client()
+        job_config = bigquery.LoadJobConfig(
+            write_disposition="WRITE_APPEND",
+            autodetect=True,
+        )
+
+        job = client.load_table_from_dataframe(df, combined_table_id, job_config=job_config)
+        job.result()  # Wait for the job to complete
+
+        logging.info(f"Loaded combined data into {combined_table_id}")
+    else:
+        logging.error("No data to load into combined table")
+
+# Main pipeline flow
 @flow(name="main-pipeline")
 def main_pipeline():
     # Step 1: Retrieve the API Key
@@ -141,10 +157,14 @@ def main_pipeline():
     extract_data(api_key)
 
     # Step 3: Parse raw data and upload parsed data to GCS
-    parse_data()
+    all_parsed_data = parse_data()
 
-    # Step 4: Load parsed data into BigQuery
-    load_all_data_to_bigquery()
+    # Step 4: Load parsed data into BigQuery for each symbol
+    for symbol in ['AAPL', 'NFLX', 'MSFT', 'NVDA', 'AMZN']:
+        load_data_to_bigquery(symbol, all_parsed_data)
+
+    # Step 5: Load combined data into BigQuery
+    load_combined_data_to_bigquery(all_parsed_data)
 
 # Run the main pipeline flow
 if __name__ == "__main__":
