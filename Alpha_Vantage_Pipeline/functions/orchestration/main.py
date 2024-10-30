@@ -78,7 +78,7 @@ def extract_data(api_key):
 def parse_data():
     stock_symbols = ['AAPL', 'NFLX', 'MSFT', 'NVDA', 'AMZN']
     bucket_name = 'finnhub-financial-data'
-    all_parsed_data = []  # List to hold all parsed data for BigQuery
+    all_parsed_data = []
 
     for symbol in stock_symbols:
         raw_file_name = f'raw_{symbol}_data.json'
@@ -89,12 +89,12 @@ def parse_data():
             parsed_file_name = f'parsed_{symbol}_data.json'
             upload_to_gcs(bucket_name, parsed_file_name, json.dumps(parsed_data))
             logging.info(f"Parsed data uploaded for {symbol}")
-            all_parsed_data.extend(parsed_data)  # Add parsed data to the list for combined table
+            all_parsed_data.extend(parsed_data)
         else:
             logging.error(f"No data parsed for {symbol}")
 
     logging.info(f"Total parsed data entries: {len(all_parsed_data)}")
-    return all_parsed_data  # Return all parsed data for further processing
+    return all_parsed_data 
 
 # Task to load data into BigQuery
 @task
@@ -102,9 +102,8 @@ def load_data_to_bigquery(symbol, parsed_data):
     logging.info(f"Loading parsed data for {symbol} into BigQuery")
 
     df = pd.DataFrame(parsed_data)
-    df['symbol'] = symbol  # Add symbol column for easier querying
+    df['symbol'] = symbol 
 
-    # Ensure numeric columns are converted to appropriate data types
     numeric_columns = ["open", "high", "low", "close", "volume"]
     for column in numeric_columns:
         df[column] = pd.to_numeric(df[column], errors='coerce')
@@ -117,7 +116,7 @@ def load_data_to_bigquery(symbol, parsed_data):
     )
 
     job = client.load_table_from_dataframe(df, table_id, job_config=job_config)
-    job.result()  # Wait for the job to complete
+    job.result()
 
     logging.info(f"Loaded data for {symbol} into {table_id}")
 
@@ -128,7 +127,6 @@ def load_combined_data_to_bigquery(all_parsed_data):
         logging.info("Loading combined data into BigQuery")
         df = pd.DataFrame(all_parsed_data)
 
-        # Ensure numeric columns are converted to appropriate data types
         numeric_columns = ["open", "high", "low", "close", "volume"]
         for column in numeric_columns:
             df[column] = pd.to_numeric(df[column], errors='coerce')
@@ -141,7 +139,7 @@ def load_combined_data_to_bigquery(all_parsed_data):
         )
 
         job = client.load_table_from_dataframe(df, combined_table_id, job_config=job_config)
-        job.result()  # Wait for the job to complete
+        job.result()  
 
         logging.info(f"Loaded combined data into {combined_table_id}")
     else:
