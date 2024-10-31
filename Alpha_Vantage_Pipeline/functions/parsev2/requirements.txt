@@ -4,4 +4,5 @@ google-cloud-storage
 requests
 pandas
 google-cloud-bigquery
-
+Flask
+gunicorn

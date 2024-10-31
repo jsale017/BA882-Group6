@@ -1,7 +1,10 @@
+from flask import Flask, jsonify, request
 import logging
 from google.cloud import bigquery
-import functions_framework
 
+app = Flask(__name__)
+
+# Initializing logger
 logging.basicConfig(level=logging.INFO)
 
 def setup_schema():
@@ -11,8 +14,8 @@ def setup_schema():
     dataset_id = 'financial_data'
     stock_symbols = ['AAPL', 'NFLX', 'MSFT', 'NVDA', 'AMZN']
 
+    # Creating dataset
     try:
-        # Creating dataset
         dataset_ref = bigquery.Dataset(f"{project_id}.{dataset_id}")
         bq_client.create_dataset(dataset_ref, exists_ok=True)
         logging.info(f"Dataset {dataset_id} created or already exists.")
@@ -23,7 +26,6 @@ def setup_schema():
     # Creating tables for each stock symbol
     for symbol in stock_symbols:
         table_id = f"{project_id}.{dataset_id}.{symbol.lower()}_prices"
-
         create_table_sql = f"""
         CREATE TABLE IF NOT EXISTS `{table_id}` (
             symbol STRING,
@@ -42,6 +44,7 @@ def setup_schema():
             logging.error(f"Error creating table {symbol.lower()}_prices: {e}")
             raise
 
+        # Ensure the 'symbol' column exists
         try:
             table = bq_client.get_table(table_id)
             if 'symbol' not in [field.name for field in table.schema]:
@@ -55,12 +58,16 @@ def setup_schema():
             logging.error(f"Error altering table {symbol.lower()}_prices to add 'symbol' column: {e}")
             raise
 
-@functions_framework.http
-def main(request):
-    """HTTP Cloud Function entry point."""
+@app.route("/", methods=["GET", "POST"])
+def main():
+    """Endpoint to set up the schema in BigQuery."""
     try:
         setup_schema()
-        return {"statusCode": 200, "message": "Schema setup complete"}
+        return jsonify({"statusCode": 200, "message": "Schema setup complete"})
     except Exception as e:
         logging.error(f"Schema setup failed: {str(e)}")
-        return {"statusCode": 500, "message": f"Error: {str(e)}"}
+        return jsonify({"statusCode": 500, "message": f"Error: {str(e)}"}), 500
+
+# For local testing (if needed)
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=8080)
