@@ -1,6 +1,0 @@
-active = "ephemeral"
-
-[profiles.ephemeral]
-PREFECT_SERVER_ALLOW_EPHEMERAL_MODE = "true"
-PREFECT_API_KEY = "pnu_epXn80BdoGvqoxKKUC3C1iW7hAEmbb0RepxG"
-PREFECT_API_URL = "https://api.prefect.cloud/api/accounts/ccbcf6a0-f187-4077-97be-f6609b8388db/workspaces/681b6ed1-730c-4b5d-a251-295107f2b1b2"
