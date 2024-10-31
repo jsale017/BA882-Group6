@@ -25,9 +25,9 @@ Technology Stocks Used during the Analysis
 
 ### Tools utilized:
 1. Google Cloud
-2. Apache Airflow
+2. Prefect Orchestration & Prefect Cloud
 3. Google BigQuery
-4. Google Composer
+4. Flask
 5. Google Secret Manager
 
 ### Pipeline Flow
@@ -36,7 +36,7 @@ Technology Stocks Used during the Analysis
 graph TD;
     A[Extract Data] --> B[Parse Data];
     B --> C[Loading Data into BigQuery];
-    C --> D[Orchestration with Airflow & Google Composer]
+    C --> D[Orchestration with Prefect]
 
 
 
