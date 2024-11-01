@@ -3,6 +3,7 @@ import logging
 from google.cloud import storage, secretmanager
 import requests
 import json
+from datetime import datetime  # Moved here with other imports
 
 app = Flask(__name__)
 
@@ -28,7 +29,6 @@ def upload_to_gcs(bucket_name, file_name, data):
 @app.route("/", methods=["GET", "POST"])
 def extract_data():
     logging.info("Starting data extraction")
-
     try:
         # Get the API key
         alphavantage_api_key = get_alphavantage_api_key()
@@ -36,22 +36,34 @@ def extract_data():
 
         # List of stock symbols to fetch data for
         stock_symbols = ['AAPL', 'NFLX', 'MSFT', 'NVDA', 'AMZN']
+        
+        # Define your start date
+        start_date = datetime(2023, 1, 1)  # Example: fetch data from Jan 1, 2023
 
-        # Fetching stock data from the Alpha Vantage API
+        # Fetching stock data from Alpha Vantage API
         for symbol in stock_symbols:
-            url = f"https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol={symbol}&apikey={alphavantage_api_key}"
+            url = f"https://www.alphavantage.co/query?function=TIME_SERIES_DAILY_ADJUSTED&symbol={symbol}&apikey={alphavantage_api_key}&outputsize=full"
             response = requests.get(url)
-
+            
             if response.status_code == 200:
                 logging.info(f"Data fetched successfully for {symbol}")
                 stock_data = response.json()
+                
+                # Filter data by start date
+                filtered_data = {
+                    "Meta Data": stock_data["Meta Data"],
+                    "Time Series (Daily)": {
+                        date: data for date, data in stock_data["Time Series (Daily)"].items()
+                        if datetime.strptime(date, "%Y-%m-%d") >= start_date
+                    }
+                }
 
-                # Upload raw stock data to GCS
-                upload_to_gcs('finnhub-financial-data', f'raw_{symbol}_data.json', json.dumps(stock_data))
+                # Upload filtered data to GCS
+                upload_to_gcs('finnhub-financial-data', f'filtered_{symbol}_data.json', json.dumps(filtered_data))
             else:
                 logging.error(f"Failed to fetch data for {symbol}. Status code: {response.status_code}")
 
-        logging.info("All data extraction and uploads complete")
+        logging.info("Data extraction and upload complete")
         return jsonify({"message": "Data extraction and upload complete."}), 200
 
     except Exception as e:

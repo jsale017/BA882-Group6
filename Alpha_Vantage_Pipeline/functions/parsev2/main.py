@@ -68,7 +68,7 @@ def parse_data():
     try:
         stock_symbols = ['AAPL', 'NFLX', 'MSFT', 'NVDA', 'AMZN']
         for symbol in stock_symbols:
-            file_name = f'raw_{symbol}_data.json'
+            file_name = f'filtered_{symbol}_data.json'
             raw_data = download_from_gcs('finnhub-financial-data', file_name)
             parsed_data = parse_stock_data(raw_data, symbol)
 

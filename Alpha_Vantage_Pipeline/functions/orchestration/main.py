@@ -17,7 +17,7 @@ def trigger_extract():
 
 @task
 def trigger_parse():
-    url = "https://parse-data-v2-676257416424.us-central1.run.app"
+    url = "https://parse-service-676257416424.us-central1.run.app"
     response = requests.get(url)
     response.raise_for_status()
     return response.json()
