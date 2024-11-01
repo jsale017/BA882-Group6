@@ -38,6 +38,7 @@ def setup_schema():
         )
         """
         try:
+            logging.info(f"Creating or verifying existence of table `{table_id}`.")
             bq_client.query(create_table_sql).result()
             logging.info(f"Table {symbol.lower()}_prices created or exists.")
         except Exception as e:
@@ -52,8 +53,11 @@ def setup_schema():
                 ALTER TABLE `{table_id}`
                 ADD COLUMN symbol STRING
                 """
+                logging.info(f"Adding 'symbol' column to `{table_id}`.")
                 bq_client.query(alter_table_sql).result()
                 logging.info(f"'symbol' column added to {symbol.lower()}_prices table.")
+            else:
+                logging.info(f"'symbol' column already exists in `{table_id}`.")
         except Exception as e:
             logging.error(f"Error altering table {symbol.lower()}_prices to add 'symbol' column: {e}")
             raise
@@ -62,7 +66,9 @@ def setup_schema():
 def main():
     """Endpoint to set up the schema in BigQuery."""
     try:
+        logging.info("Starting schema setup process.")
         setup_schema()
+        logging.info("Schema setup completed successfully.")
         return jsonify({"statusCode": 200, "message": "Schema setup complete"})
     except Exception as e:
         logging.error(f"Schema setup failed: {str(e)}")

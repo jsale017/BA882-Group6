@@ -19,41 +19,73 @@ def download_from_gcs(bucket_name, file_name):
     return json.loads(raw_data)
 
 # Function to load data into BigQuery
-def load_data_to_bigquery(data, staging_table_id, final_table_id):
-    df = pd.DataFrame(data)
-    numeric_columns = ['open', 'high', 'low', 'close', 'volume']
-    df[numeric_columns] = df[numeric_columns].apply(pd.to_numeric, errors='coerce')
-    df = df.dropna(subset=['symbol']).drop_duplicates(subset=['date', 'open', 'close', 'high', 'low', 'volume', 'symbol'])
+def load_data_to_bigquery(data, staging_table_id, final_table_id, all_stocks_table_id="finnhub-pipeline-ba882.financial_data.all_stocks_prices"):
+    logging.info("Starting BigQuery load process.")
+    try:
+        # DataFrame creation and cleaning
+        df = pd.DataFrame(data)
+        logging.info("Data converted to DataFrame.")
+        
+        numeric_columns = ['open', 'high', 'low', 'close', 'volume']
+        df[numeric_columns] = df[numeric_columns].apply(pd.to_numeric, errors='coerce')
+        df = df.dropna(subset=['symbol']).drop_duplicates(subset=['date', 'open', 'close', 'high', 'low', 'volume', 'symbol'])
+        
+        logging.info("Data cleaned and prepared for BigQuery.")
+        client = bigquery.Client()
+        job_config = bigquery.LoadJobConfig(write_disposition="WRITE_TRUNCATE", autodetect=True)
+        
+        # Load data into staging table
+        logging.info(f"Loading data into staging table: {staging_table_id}")
+        job = client.load_table_from_dataframe(df, staging_table_id, job_config=job_config)
+        job.result(timeout=300)
+        logging.info(f"Successfully loaded data into {staging_table_id}")
+        
+        # MERGE into individual final table
+        merge_query = f"""
+        MERGE `{final_table_id}` T
+        USING `{staging_table_id}` S
+        ON T.date = S.date
+        WHEN MATCHED THEN
+          UPDATE SET
+            T.open = S.open,
+            T.high = S.high,
+            T.low = S.low,
+            T.close = S.close,
+            T.volume = S.volume,
+            T.symbol = S.symbol
+        WHEN NOT MATCHED THEN
+          INSERT (date, open, high, low, close, volume, symbol)
+          VALUES (S.date, S.open, S.high, S.low, S.close, S.volume, S.symbol)
+        """
+        logging.info(f"Merging data from {staging_table_id} into {final_table_id}")
+        query_job = client.query(merge_query)
+        query_job.result()
+        logging.info(f"Successfully merged data into {final_table_id}")
+        
+        # Merge into all_stocks_prices table
+        all_stocks_merge_query = f"""
+        MERGE `{all_stocks_table_id}` T
+        USING `{staging_table_id}` S
+        ON T.date = S.date AND T.symbol = S.symbol
+        WHEN MATCHED THEN
+          UPDATE SET
+            T.open = S.open,
+            T.high = S.high,
+            T.low = S.low,
+            T.close = S.close,
+            T.volume = S.volume
+        WHEN NOT MATCHED THEN
+          INSERT (date, open, high, low, close, volume, symbol)
+          VALUES (S.date, S.open, S.high, S.low, S.close, S.volume, S.symbol)
+        """
+        logging.info(f"Merging data from {staging_table_id} into {all_stocks_table_id}")
+        all_stocks_query_job = client.query(all_stocks_merge_query)
+        all_stocks_query_job.result()
+        logging.info(f"Successfully merged data into {all_stocks_table_id}")
 
-    client = bigquery.Client()
-    job_config = bigquery.LoadJobConfig(write_disposition="WRITE_TRUNCATE", autodetect=True)
-
-    # Load data into staging table
-    logging.info(f"Loading data into staging table: {staging_table_id}")
-    job = client.load_table_from_dataframe(df, staging_table_id, job_config=job_config)
-    job.result()
-
-    # MERGE query to transfer data from staging to final table
-    merge_query = f"""
-    MERGE `{final_table_id}` T
-    USING `{staging_table_id}` S
-    ON T.date = S.date
-    WHEN MATCHED THEN
-      UPDATE SET
-        T.open = S.open,
-        T.high = S.high,
-        T.low = S.low,
-        T.close = S.close,
-        T.volume = S.volume,
-        T.symbol = S.symbol
-    WHEN NOT MATCHED THEN
-      INSERT (date, open, high, low, close, volume, symbol)
-      VALUES (S.date, S.open, S.high, S.low, S.close, S.volume, S.symbol)
-    """
-    logging.info(f"Merging data from {staging_table_id} into {final_table_id}")
-    query_job = client.query(merge_query)
-    query_job.result()
-    logging.info(f"Successfully merged data into {final_table_id}")
+    except Exception as e:
+        logging.error(f"BigQuery loading error: {str(e)}")
+        raise
 
 # Main route for the load process
 @app.route("/", methods=["GET", "POST"])

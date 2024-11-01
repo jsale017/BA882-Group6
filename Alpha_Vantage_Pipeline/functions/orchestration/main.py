@@ -22,10 +22,9 @@ def trigger_parse():
     response.raise_for_status()
     return response.json()
 
-@task
+@task(retries=3, retry_delay_seconds=60, timeout_seconds=300)
 def trigger_load():
-    url = "https://load-data-v2-676257416424.us-central1.run.app"
-    response = requests.get(url)
+    response = requests.get("https://load-data-v2-676257416424.us-central1.run.app")
     response.raise_for_status()
     return response.json()
 
