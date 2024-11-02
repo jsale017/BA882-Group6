@@ -23,68 +23,74 @@ def upload_parsed_data_to_gcs(bucket_name, file_name, data):
     client = storage.Client()
     bucket = client.bucket(bucket_name)
     blob = bucket.blob(file_name)
-    blob.upload_from_string(data)
+    if blob.exists():
+        logging.info(f"Deleting existing file {bucket_name}/{file_name}")
+        blob.delete()
+    blob.upload_from_string(data, content_type="application/json")
     logging.info(f"Uploaded parsed data to {bucket_name}/{file_name}")
 
-# Function to clean parsed stock data
-def clean_parsed_data(df, symbol):
-    df['symbol'] = df['symbol'].fillna(symbol)
-    df = df.drop_duplicates(subset=['date', 'open', 'close', 'high', 'low', 'volume', 'symbol'])
-    numeric_columns = ['open', 'high', 'low', 'close', 'volume']
-    
-    # Convert numeric columns to appropriate types
-    df[numeric_columns] = df[numeric_columns].apply(pd.to_numeric, errors='coerce')
-    df = df.dropna(subset=['open', 'close', 'symbol'])  # Ensure essential data is present
-    return df
-
-# Function to parse stock data
+# Function to parse stock data and convert to DataFrame
 def parse_stock_data(raw_data, symbol):
-    try:
-        time_series = raw_data.get("Time Series (Daily)", {})
-        parsed_data = []
-        for date, daily_data in time_series.items():
-            parsed_record = {
+    # Extracting the time series data and converting it into a list of dictionaries
+    time_series = raw_data.get("Time Series (Daily)", {})
+    parsed_data = []
+    for date, daily_data in time_series.items():
+        try:
+            # Attempt to retrieve and convert volume to float
+            volume = daily_data.get("6. volume")
+            if volume is not None:
+                volume = float(volume)
+            else:
+                volume = None  # Handle missing volume as None
+            
+            # Parsing each day's stock data
+            parsed_data.append({
                 "symbol": symbol,
                 "date": date,
-                "open": daily_data.get("1. open"),
-                "high": daily_data.get("2. high"),
-                "low": daily_data.get("3. low"),
-                "close": daily_data.get("4. close"),
-                "volume": daily_data.get("5. volume"),  # Ensure this is extracted correctly
-            }
-            parsed_data.append(parsed_record)
-
-        df = pd.DataFrame(parsed_data)
-        df = clean_parsed_data(df, symbol)
-        logging.info(f"Successfully parsed and cleaned stock data for {symbol}")
-        return df
-    except KeyError as e:
-        logging.error(f"KeyError during parsing for {symbol}: {str(e)}")
-        return None
+                "open": float(daily_data.get("1. open", "nan")),
+                "high": float(daily_data.get("2. high", "nan")),
+                "low": float(daily_data.get("3. low", "nan")),
+                "close": float(daily_data.get("4. close", "nan")),
+                "volume": volume
+            })
+        except ValueError as e:
+            logging.warning(f"Data conversion error for {symbol} on {date}: {e}")
+    
+    # Converting the list of dictionaries to a DataFrame
+    df = pd.DataFrame(parsed_data)
+    logging.info(f"Parsed data for {symbol}:\n{df.head()}")
+    return df
 
 # Main endpoint to parse data
 @app.route("/", methods=["GET", "POST"])
 def parse_data():
     logging.info("Starting data parsing")
-
     try:
+        # List of stock symbols
         stock_symbols = ['AAPL', 'NFLX', 'MSFT', 'NVDA', 'AMZN']
         for symbol in stock_symbols:
+            logging.info(f"Processing symbol: {symbol}")
             file_name = f'filtered_{symbol}_data.json'
+            
+            # Downloading raw data
             raw_data = download_from_gcs('finnhub-financial-data', file_name)
-            parsed_data = parse_stock_data(raw_data, symbol)
+            parsed_df = parse_stock_data(raw_data, symbol)
 
-            if parsed_data is not None:
-                parsed_file_name = f'parsed_{symbol}_data.json'
-                upload_parsed_data_to_gcs('finnhub-financial-data', parsed_file_name, parsed_data.to_json(orient="records"))
+            # Uploading parsed data as JSON
+            parsed_file_name = f'parsed_{symbol}_data.json'
+            upload_parsed_data_to_gcs(
+                'finnhub-financial-data',
+                parsed_file_name,
+                parsed_df.to_json(orient="records")
+            )
+            logging.info(f"Uploaded parsed data for {symbol} to {parsed_file_name}")
 
-        logging.info("All data parsing and uploads complete")
+        logging.info("Data parsing and upload complete")
         return jsonify({"message": "Data parsing and upload complete."}), 200
 
     except Exception as e:
         logging.error(f"Error during data parsing: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
-# Running the app locally if needed
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8080)

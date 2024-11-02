@@ -10,21 +10,21 @@ def trigger_schema_setup():
 
 @task
 def trigger_extract():
-    url = "https://extract-data-v2-676257416424.us-central1.run.app"
+    url = "https://stock-data-extract-676257416424.us-central1.run.app"
     response = requests.get(url)
     response.raise_for_status()
     return response.json()
 
 @task
 def trigger_parse():
-    url = "https://parsev2-676257416424.us-central1.run.app"
+    url = "https://alpha-vantage-parser-676257416424.us-central1.run.app"
     response = requests.get(url)
     response.raise_for_status()
     return response.json()
 
 @task(retries=3, retry_delay_seconds=60, timeout_seconds=300)
 def trigger_load():
-    response = requests.get("https://load-data-v2-676257416424.us-central1.run.app")
+    response = requests.get("https://alpha-vantage-loader-676257416424.us-central1.run.app")
     response.raise_for_status()
     return response.json()
 

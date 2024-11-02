@@ -6,7 +6,7 @@ if __name__ == "__main__":
         entrypoint="Alpha_Vantage_Pipeline/functions/orchestration/main.py:stock_etl_flow",
     ).deploy(
         name="stock-etl-flow",
-        work_pool_name="Finance project End-to-End Pipeline",
+        work_pool_name="finance",
         job_variables={
             "env": {"PROJECT_ID": "finnhub-pipeline-ba882"},
             "pip_packages": [
