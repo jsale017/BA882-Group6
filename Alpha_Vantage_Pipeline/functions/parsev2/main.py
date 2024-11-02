@@ -31,8 +31,10 @@ def clean_parsed_data(df, symbol):
     df['symbol'] = df['symbol'].fillna(symbol)
     df = df.drop_duplicates(subset=['date', 'open', 'close', 'high', 'low', 'volume', 'symbol'])
     numeric_columns = ['open', 'high', 'low', 'close', 'volume']
+    
+    # Convert numeric columns to appropriate types
     df[numeric_columns] = df[numeric_columns].apply(pd.to_numeric, errors='coerce')
-    df = df.dropna(subset=['open', 'close', 'symbol'])
+    df = df.dropna(subset=['open', 'close', 'symbol'])  # Ensure essential data is present
     return df
 
 # Function to parse stock data
@@ -48,7 +50,7 @@ def parse_stock_data(raw_data, symbol):
                 "high": daily_data.get("2. high"),
                 "low": daily_data.get("3. low"),
                 "close": daily_data.get("4. close"),
-                "volume": daily_data.get("5. volume"),
+                "volume": daily_data.get("5. volume"),  # Ensure this is extracted correctly
             }
             parsed_data.append(parsed_record)
 
