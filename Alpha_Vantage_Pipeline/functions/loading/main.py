@@ -6,8 +6,15 @@ import pandas as pd
 
 app = Flask(__name__)
 
-# Initializing logger
-logging.basicConfig(level=logging.INFO)
+# Initialize logger
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
+
+# Health check endpoint
+@app.route("/health", methods=["GET"])
+def health_check():
+    logger.info("Health check endpoint accessed.")
+    return jsonify({"status": "healthy"}), 200
 
 # Function to download data from Google Cloud Storage
 def download_from_gcs(bucket_name, file_name):
@@ -15,32 +22,36 @@ def download_from_gcs(bucket_name, file_name):
     bucket = client.bucket(bucket_name)
     blob = bucket.blob(file_name)
     raw_data = blob.download_as_string()
-    logging.info(f"Downloaded data from {bucket_name}/{file_name}")
+    logger.info(f"Downloaded data from {bucket_name}/{file_name}")
     return json.loads(raw_data)
 
 # Function to load data into BigQuery
 def load_data_to_bigquery(data, staging_table_id, final_table_id, all_stocks_table_id="finnhub-pipeline-ba882.financial_data.all_stocks_prices"):
-    logging.info("Starting BigQuery load process.")
+    logger.info("Starting BigQuery load process.")
     try:
-        # DataFrame creation and cleaning
+        # Convert data to DataFrame and clean
         df = pd.DataFrame(data)
-        logging.info("Data converted to DataFrame.")
+        logger.info("Data converted to DataFrame.")
         
-        numeric_columns = ['open', 'high', 'low', 'close', 'volume']
+        # Convert numeric columns to appropriate types
+        df['volume'] = df['volume'].astype(pd.Int64Dtype(), errors='ignore')
+        numeric_columns = ['open', 'high', 'low', 'close']
         df[numeric_columns] = df[numeric_columns].apply(pd.to_numeric, errors='coerce')
+
+        # Drop duplicates and clean data
         df = df.dropna(subset=['symbol']).drop_duplicates(subset=['date', 'open', 'close', 'high', 'low', 'volume', 'symbol'])
         
-        logging.info("Data cleaned and prepared for BigQuery.")
+        logger.info("Data cleaned and prepared for BigQuery.")
         client = bigquery.Client()
         job_config = bigquery.LoadJobConfig(write_disposition="WRITE_TRUNCATE", autodetect=True)
         
         # Load data into staging table
-        logging.info(f"Loading data into staging table: {staging_table_id}")
+        logger.info(f"Loading data into staging table: {staging_table_id}")
         job = client.load_table_from_dataframe(df, staging_table_id, job_config=job_config)
         job.result(timeout=300)
-        logging.info(f"Successfully loaded data into {staging_table_id}")
+        logger.info(f"Successfully loaded data into {staging_table_id}")
         
-        # MERGE into individual final table
+        # Merge data into final table
         merge_query = f"""
         MERGE `{final_table_id}` T
         USING `{staging_table_id}` S
@@ -57,10 +68,10 @@ def load_data_to_bigquery(data, staging_table_id, final_table_id, all_stocks_tab
           INSERT (date, open, high, low, close, volume, symbol)
           VALUES (S.date, S.open, S.high, S.low, S.close, S.volume, S.symbol)
         """
-        logging.info(f"Merging data from {staging_table_id} into {final_table_id}")
+        logger.info(f"Merging data from {staging_table_id} into {final_table_id}")
         query_job = client.query(merge_query)
         query_job.result()
-        logging.info(f"Successfully merged data into {final_table_id}")
+        logger.info(f"Successfully merged data into {final_table_id}")
         
         # Merge into all_stocks_prices table
         all_stocks_merge_query = f"""
@@ -78,19 +89,19 @@ def load_data_to_bigquery(data, staging_table_id, final_table_id, all_stocks_tab
           INSERT (date, open, high, low, close, volume, symbol)
           VALUES (S.date, S.open, S.high, S.low, S.close, S.volume, S.symbol)
         """
-        logging.info(f"Merging data from {staging_table_id} into {all_stocks_table_id}")
+        logger.info(f"Merging data from {staging_table_id} into {all_stocks_table_id}")
         all_stocks_query_job = client.query(all_stocks_merge_query)
         all_stocks_query_job.result()
-        logging.info(f"Successfully merged data into {all_stocks_table_id}")
+        logger.info(f"Successfully merged data into {all_stocks_table_id}")
 
     except Exception as e:
-        logging.error(f"BigQuery loading error: {str(e)}")
+        logger.error(f"BigQuery loading error: {str(e)}")
         raise
 
 # Main route for the load process
 @app.route("/", methods=["GET", "POST"])
 def load_data():
-    logging.info("Starting data load process for multiple stocks")
+    logger.info("Starting data load process for multiple stocks.")
     try:
         stock_symbols = ['AAPL', 'NFLX', 'MSFT', 'NVDA', 'AMZN']
         bucket_name = 'finnhub-financial-data'
@@ -102,12 +113,13 @@ def load_data():
             final_table_id = f'finnhub-pipeline-ba882.financial_data.{symbol.lower()}_prices'
             load_data_to_bigquery(data, staging_table_id, final_table_id)
 
-        logging.info("All data successfully loaded into BigQuery")
+        logger.info("All data successfully loaded into BigQuery.")
         return jsonify({"message": "Data successfully loaded into BigQuery."}), 200
 
     except Exception as e:
-        logging.error(f"Error during data load: {str(e)}")
+        logger.error(f"Error during data load: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
+    logger.info("Starting Flask application on port 8080")
     app.run(host="0.0.0.0", port=8080)
