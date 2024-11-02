@@ -34,7 +34,7 @@ def load_data_to_bigquery(data, staging_table_id, final_table_id, all_stocks_tab
         logger.info("Data converted to DataFrame.")
         
         # Convert numeric columns to appropriate types
-        df['volume'] = df['volume'].astype(pd.Int64Dtype(), errors='ignore')
+        df['volume'] = df['volume'].fillna(0).astype('Int64')
         numeric_columns = ['open', 'high', 'low', 'close']
         df[numeric_columns] = df[numeric_columns].apply(pd.to_numeric, errors='coerce')
 
