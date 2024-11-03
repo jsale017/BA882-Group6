@@ -1,19 +1,17 @@
-# Use an official Python runtime as a base image
-FROM python:3.10
+# Use an official Python runtime as a parent image
+FROM python:3.9
 
-# Set the working directory
+# Set the working directory in the container
 WORKDIR /app
 
-# Copy requirements.txt and install dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Copy the current directory contents into the container at /app
+COPY . /app
 
-# Copy the application code
-COPY . .
+# Install dependencies
+RUN pip install -r requirements.txt
 
-# Expose port 8080 for Cloud Run
-ENV PORT 8080
+# Make port 8080 available to the world outside this container
 EXPOSE 8080
 
-# Command to run the app
-CMD ["gunicorn", "--bind", "0.0.0.0:8080", "main:app"]
+# Run app.py when the container launches
+CMD ["python", "main.py"]

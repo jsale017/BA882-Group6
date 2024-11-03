@@ -1,20 +1,17 @@
-from flask import Flask, jsonify, request
 import logging
+from flask import jsonify
 from google.cloud import bigquery
-
-app = Flask(__name__)
 
 # Initializing logger
 logging.basicConfig(level=logging.INFO)
 
 def setup_schema():
-    """Set up BigQuery schema: dataset and tables."""
+    """Set up BigQuery schema: dataset, trades fact table, and year_end_reports dimension table."""
     bq_client = bigquery.Client()
     project_id = 'finnhub-pipeline-ba882'
     dataset_id = 'financial_data'
-    stock_symbols = ['AAPL', 'NFLX', 'MSFT', 'NVDA', 'AMZN']
 
-    # Creating dataset
+    # Create dataset
     try:
         dataset_ref = bigquery.Dataset(f"{project_id}.{dataset_id}")
         bq_client.create_dataset(dataset_ref, exists_ok=True)
@@ -23,48 +20,52 @@ def setup_schema():
         logging.error(f"Error creating dataset {dataset_id}: {e}")
         raise
 
-    # Creating tables for each stock symbol
-    for symbol in stock_symbols:
-        table_id = f"{project_id}.{dataset_id}.{symbol.lower()}_prices"
-        create_table_sql = f"""
-        CREATE TABLE IF NOT EXISTS `{table_id}` (
-            symbol STRING,
-            `date` STRING, 
-            open FLOAT64,
-            high FLOAT64,
-            low FLOAT64,
-            close FLOAT64,
-            volume INT64
-        )
-        """
-        try:
-            logging.info(f"Creating or verifying existence of table `{table_id}`.")
-            bq_client.query(create_table_sql).result()
-            logging.info(f"Table {symbol.lower()}_prices created or exists.")
-        except Exception as e:
-            logging.error(f"Error creating table {symbol.lower()}_prices: {e}")
-            raise
+    # Create `trades` fact table
+    trades_table_id = f"{project_id}.{dataset_id}.trades"
+    create_trades_table_sql = f"""
+    CREATE TABLE IF NOT EXISTS `{trades_table_id}` (
+        trade_id STRING,
+        symbol STRING,
+        trade_date DATE,
+        open FLOAT64,
+        high FLOAT64,
+        low FLOAT64,
+        close FLOAT64,
+        volume INT64
+    )
+    """
+    try:
+        logging.info(f"Creating or verifying existence of fact table `{trades_table_id}`.")
+        bq_client.query(create_trades_table_sql).result()
+        logging.info(f"Fact table 'trades' created or already exists.")
+    except Exception as e:
+        logging.error(f"Error creating fact table 'trades': {e}")
+        raise
 
-        # Ensure the 'symbol' column exists
-        try:
-            table = bq_client.get_table(table_id)
-            if 'symbol' not in [field.name for field in table.schema]:
-                alter_table_sql = f"""
-                ALTER TABLE `{table_id}`
-                ADD COLUMN symbol STRING
-                """
-                logging.info(f"Adding 'symbol' column to `{table_id}`.")
-                bq_client.query(alter_table_sql).result()
-                logging.info(f"'symbol' column added to {symbol.lower()}_prices table.")
-            else:
-                logging.info(f"'symbol' column already exists in `{table_id}`.")
-        except Exception as e:
-            logging.error(f"Error altering table {symbol.lower()}_prices to add 'symbol' column: {e}")
-            raise
+    # Create `year_end_reports` dimension table
+    year_end_reports_table_id = f"{project_id}.{dataset_id}.year_end_reports"
+    create_year_end_reports_table_sql = f"""
+    CREATE TABLE IF NOT EXISTS `{year_end_reports_table_id}` (
+        symbol STRING,
+        year INT64,
+        total_revenue FLOAT64,
+        net_income FLOAT64,
+        eps FLOAT64,
+        assets FLOAT64,
+        liabilities FLOAT64,
+        equity FLOAT64
+    )
+    """
+    try:
+        logging.info(f"Creating or verifying existence of dimension table `{year_end_reports_table_id}`.")
+        bq_client.query(create_year_end_reports_table_sql).result()
+        logging.info(f"Dimension table 'year_end_reports' created or already exists.")
+    except Exception as e:
+        logging.error(f"Error creating dimension table 'year_end_reports': {e}")
+        raise
 
-@app.route("/", methods=["GET", "POST"])
-def main():
-    """Endpoint to set up the schema in BigQuery."""
+def main(request):
+    """Cloud Function endpoint to set up the schema in BigQuery."""
     try:
         logging.info("Starting schema setup process.")
         setup_schema()
@@ -74,6 +75,11 @@ def main():
         logging.error(f"Schema setup failed: {str(e)}")
         return jsonify({"statusCode": 500, "message": f"Error: {str(e)}"}), 500
 
-# For local testing (if needed)
+# Local testing setup (optional)
 if __name__ == "__main__":
+    from flask import Flask, request
+    app = Flask(__name__)
+    @app.route("/", methods=["GET", "POST"])
+    def local_main():
+        return main(request)
     app.run(host="0.0.0.0", port=8080)
