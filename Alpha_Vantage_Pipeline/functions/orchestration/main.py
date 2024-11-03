@@ -10,7 +10,7 @@ def trigger_schema_setup():
 
 @task
 def trigger_extract():
-    url = "https://stock-data-extract-676257416424.us-central1.run.app"
+    url = "https://stock-data-extractor-676257416424.us-central1.run.app"
     response = requests.get(url)
     response.raise_for_status()
     return response.json()

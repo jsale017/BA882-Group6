@@ -38,7 +38,7 @@ def extract_data():
         stock_symbols = ['AAPL', 'NFLX', 'MSFT', 'NVDA', 'AMZN']
         
         # Define your start date
-        start_date = datetime(2023, 1, 1)  # Example: fetch data from Jan 1, 2023
+        start_date = datetime(2023, 5, 1)
 
         # Fetching stock data from Alpha Vantage API
         for symbol in stock_symbols:
