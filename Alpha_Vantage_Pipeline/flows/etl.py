@@ -15,7 +15,7 @@ def invoke_gcf(url:str, payload:dict):
 @task(retries=2)
 def schema_setup():
     """Setup the stage schema"""
-    url = "https://us-central1-finnhub-pipeline-ba882.cloudfunctions.net/schemaSetupFunction"
+    url = "https://schema-setup-function-676257416424.us-central1.run.app"
     resp = invoke_gcf(url, payload={})
     return resp
 
@@ -36,7 +36,7 @@ def transform(payload):
 @task(retries=2)
 def load(payload):
     """Load the tables into the raw schema, ingest new records into stage tables"""
-    url = "https://loading-676257416424.us-central1.run.app"
+    url = "https://load-data-function-676257416424.us-central1.run.app"
     resp = invoke_gcf(url, payload=payload)
     return resp
 

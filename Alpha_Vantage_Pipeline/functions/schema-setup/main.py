@@ -24,7 +24,6 @@ def setup_schema():
     trades_table_id = f"{project_id}.{dataset_id}.trades"
     create_trades_table_sql = f"""
     CREATE TABLE IF NOT EXISTS `{trades_table_id}` (
-        trade_id STRING,
         symbol STRING,
         trade_date DATE,
         open FLOAT64,
