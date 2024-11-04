@@ -73,6 +73,10 @@ def extract_data():
             if stock_data and "Meta Data" in stock_data:
                 logging.info(f"Data fetched successfully for {symbol}")
                 
+                # Check the latest date in the response to confirm if it includes today’s data
+                latest_date = max(stock_data["Time Series (Daily)"].keys())
+                logging.info(f"Latest available date for {symbol} in API response: {latest_date}")
+
                 # Filter data by start date
                 filtered_data = {
                     "Meta Data": stock_data["Meta Data"],
@@ -81,6 +85,17 @@ def extract_data():
                         if datetime.strptime(date, "%Y-%m-%d") >= start_date
                     }
                 }
+
+                # Log dates in the filtered data to confirm today’s data is included
+                available_dates = list(filtered_data["Time Series (Daily)"].keys())
+                logging.info(f"Available dates for {symbol} after filtering: {available_dates[:5]}... to {available_dates[-5:]}")
+                
+                # Check if today’s date is in the filtered data
+                today_str = datetime.now().strftime("%Y-%m-%d")
+                if today_str in filtered_data["Time Series (Daily)"]:
+                    logging.info(f"Today's data for {symbol} is available and included.")
+                else:
+                    logging.warning(f"Today's data for {symbol} is not available in the API response.")
 
                 # Upload filtered data to GCS
                 upload_to_gcs('finnhub-financial-data', f'filtered_{symbol}_data.json', json.dumps(filtered_data))
