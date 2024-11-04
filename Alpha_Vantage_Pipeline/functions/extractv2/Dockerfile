@@ -8,10 +8,13 @@ WORKDIR /app
 COPY . /app
 
 # Install dependencies
-RUN pip install -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Make port 8080 available to the world outside this container
+# Set environment variables for Flask
+ENV PORT 8080
+
+# Expose port 8080 to match Cloud Run's expected port
 EXPOSE 8080
 
-# Run app.py when the container launches
-CMD ["python", "main.py"]
+# Run gunicorn to serve the Flask app
+CMD ["gunicorn", "-b", "0.0.0.0:8080", "main:app"]
