@@ -1,0 +1,10 @@
+functions-framework==3.*
+google-cloud-secret-manager
+google-cloud-storage
+requests
+google-cloud-bigquery
+pandas
+pyarrow
+Flask
+gunicorn
+

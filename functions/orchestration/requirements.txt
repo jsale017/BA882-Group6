@@ -1,0 +1,7 @@
+prefect
+pandas
+requests
+google-cloud-storage
+google-cloud-secret-manager
+google-cloud-bigquery
+flask

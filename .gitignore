@@ -1,6 +1,16 @@
+<<<<<<< HEAD
 # Ignore everything
 *
 
 # Except for README.md and Alpha_Vantage_Pipeline directory
 !README.md
 !Alpha_Vantage_Pipeline/
+=======
+../.local/
+../.rustup/
+>>>>>>> d18ddff9 (Initial commit for Streamlit app)
+<<<<<<< HEAD
+# Your local changes
+=======
+# Changes from the remote repository
+>>>>>>> origin/main
