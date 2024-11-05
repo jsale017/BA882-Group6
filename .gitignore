@@ -5,6 +5,9 @@
 # Except for README.md and Alpha_Vantage_Pipeline directory
 !README.md
 !Alpha_Vantage_Pipeline/
+!streamlit
+!flows
+!functions
 =======
 ../.local/
 ../.rustup/
