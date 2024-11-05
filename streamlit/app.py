@@ -9,11 +9,11 @@ credentials = service_account.Credentials.from_service_account_info(
     st.secrets["service_account_key"]
 )
 
-# Initialize the BigQuery client with credentials
+# Initialize the BigQuery client with credentials and project ID
 client = bigquery.Client(credentials=credentials, project=credentials.project_id)
 
 # Function to load data from BigQuery
-@st.cache_data(ttl=600)  # Cache the data for 10 minutes
+@st.cache_data(ttl=600)
 def load_data():
     query = """
     SELECT * FROM `finnhub-pipeline-ba882.financial_data.trades`
@@ -30,10 +30,10 @@ st.write("This app displays the latest stock market data from BigQuery.")
 # Load data from BigQuery
 data = load_data()
 
-# Show raw data from BigQuery
+# Display the data and visualizations
 st.write("### Data from BigQuery", data)
 
-# Visualization: Close Price Over Time
+# Closing Price Over Time
 st.write("### Closing Price Over Time")
 plt.figure(figsize=(10, 5))
 plt.plot(data['trade_date'], data['close'], marker='o', color='blue', label="Close Price")
@@ -44,7 +44,7 @@ plt.xticks(rotation=45)
 plt.legend()
 st.pyplot(plt)
 
-# Visualization: High and Low Prices Over Time
+# High and Low Prices Over Time
 st.write("### Daily High and Low Prices Over Time")
 plt.figure(figsize=(10, 5))
 plt.plot(data['trade_date'], data['high'], color='green', label="High Price")
@@ -56,7 +56,7 @@ plt.xticks(rotation=45)
 plt.legend()
 st.pyplot(plt)
 
-# Visualization: Volume Over Time
+# Volume Over Time
 st.write("### Trading Volume Over Time")
 plt.figure(figsize=(10, 5))
 plt.bar(data['trade_date'], data['volume'], color='purple', alpha=0.7)
