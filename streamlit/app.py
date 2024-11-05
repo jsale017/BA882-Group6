@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 
 # Load service account credentials from Streamlit secrets
 credentials = service_account.Credentials.from_service_account_info(
-    st.secrets["service_account_key"] if "service_account_key" in st.secrets else {}
+    st.secrets["service_account_key"]
 )
 
 # Initialize the BigQuery client with credentials and project ID
