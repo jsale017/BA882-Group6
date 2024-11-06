@@ -5,9 +5,8 @@
 # Except for README.md and Alpha_Vantage_Pipeline directory
 !README.md
 !Alpha_Vantage_Pipeline/
-!streamlit
-!flows
 !functions
+!ml_functions
 =======
 ../.local/
 ../.rustup/
@@ -17,3 +16,4 @@
 =======
 # Changes from the remote repository
 >>>>>>> origin/main
+ml_functions/secret_key.json
