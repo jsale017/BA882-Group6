@@ -39,7 +39,7 @@ def upload_to_gcs(bucket_name, destination_path, data):
         raise
 
 @functions_framework.http
-def task(request):
+def clean_and_prepare_stock_data(request):
     try:
         # Retrieve the API key from Secret Manager
         alphavantage_api_key = get_secret_key()
@@ -52,10 +52,17 @@ def task(request):
         logging.info("Fetching data from BigQuery")
         df = bigquery_client.query(query).to_dataframe()
 
+        # Log the original data size
+        logging.info(f"Original data size: {df.shape}")
+
         # Clean the data
         logging.info("Cleaning the data")
         df.dropna(thresh=len(df) * 0.2, axis=1, inplace=True)
         df.dropna(inplace=True)
+        
+        # Remove duplicates
+        df = df.drop_duplicates()
+        logging.info(f"Data size after removing duplicates: {df.shape}")
 
         # Define the path for saving the cleaned data
         cleaned_data_path = f"{ml_dataset_path}cleaned_stock_data.csv"
