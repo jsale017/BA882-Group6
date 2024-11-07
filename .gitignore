@@ -7,10 +7,10 @@
 !Alpha_Vantage_Pipeline/
 !functions
 !ml_functions
-!ml_functions/creation_of_all_table
-!ml_functions/creation_of_all_table/main.py
-!ml_functions/creation_of_all_table/Dockerfile
-!ml_functions/creation_of_all_table/requirements.txt
+!ml_functions/creation_of_tall_table
+!ml_functions/creation_of_tall_table/main.py
+!ml_functions/creation_of_tall_table/Dockerfile
+!ml_functions/creation_of_tall_table/requirements.txt
 !ml_functions/predictive_models
 !ml_functions/rolling_window_split_data
 !ml_functions/rolling_window_split_data/Dockerfile
