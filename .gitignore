@@ -12,6 +12,9 @@
 !ml_functions/creation_of_tall_table/Dockerfile
 !ml_functions/creation_of_tall_table/requirements.txt
 !ml_functions/predictive_models
+!ml_functions/predictive_models/Random_Forest
+!ml_functions/predictive_models/Random_Forest/main.py
+!ml_functions/predictive_models/Random_Forest/requirements.txt
 !ml_functions/rolling_window_split_data
 !ml_functions/rolling_window_split_data/Dockerfile
 !ml_functions/rolling_window_split_data/main.py
@@ -22,6 +25,7 @@
 >>>>>>> d18ddff9 (Initial commit for Streamlit app)
 <<<<<<< HEAD
 # Your local changes
+
 =======
 # Changes from the remote repository
 >>>>>>> origin/main
