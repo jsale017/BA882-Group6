@@ -1,0 +1,6 @@
+google-cloud-storage
+google-cloud-aiplatform
+pandas
+functions-framework
+scikit-learn
+xgboost
