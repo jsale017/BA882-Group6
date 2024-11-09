@@ -1,5 +1,0 @@
-google-cloud-bigquery
-functions-framework
-google-cloud-storage
-Flask
-gunicorn

@@ -1,6 +1,0 @@
-google-cloud-secret-manager
-google-cloud-storage
-google-cloud-bigquery
-pandas
-functions-framework
-db-dtypes
