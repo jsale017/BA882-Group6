@@ -66,12 +66,12 @@ def create_future_test_data(train_df, horizon):
         future_dates.assign(symbol=symbol) for symbol in symbols
     ]).reset_index(drop=True)
 
-    # Add placeholder columns for the features expected by the model
+    # Populate placeholder columns with recent values
     feature_columns = [col for col in train_df.columns if col not in ['symbol', 'trade_date', 'close', 'volume']]
     for col in feature_columns:
-        future_test_data[col] = 0  # Placeholder values
+        future_test_data[col] = train_df.groupby('symbol')[col].transform(lambda x: x.iloc[-1])
 
-    logging.info("Future test data created successfully.")
+    logging.info("Future test data created successfully with enriched features.")
     logging.info(f"Future test data sample:\n{future_test_data.head()}")
     return future_test_data
 
@@ -90,11 +90,11 @@ def train_and_predict(train_df, test_df, target_column):
         model = RandomForestRegressor(random_state=42)
         model.fit(X_train, y_train)
         
-        # Predict on the testing data
+        # Predict on the future test data
         predictions = model.predict(X_test)
         
-        # Since there’s no actual target in future data, MSE isn’t applicable here
-        mse = None if target_column in ['volume', 'close'] else mean_squared_error(y_test, predictions)
+        # Calculate MSE only if there's actual target data available
+        mse = mean_squared_error(y_train, model.predict(X_train)) if target_column in train_df.columns else None
         logging.info(f"Model training and prediction completed for {target_column}")
 
         return predictions, mse
@@ -130,8 +130,8 @@ def stock_predictions_pipeline_http(request):
         test_data = create_future_test_data(train_data, PREDICTION_HORIZON)
 
         # Step 4: Train models and generate predictions on the future test set
-        volume_predictions, _ = train_and_predict(train_data, test_data, target_column='volume')
-        close_predictions, _ = train_and_predict(train_data, test_data, target_column='close')
+        volume_predictions, volume_mse = train_and_predict(train_data, test_data, target_column='volume')
+        close_predictions, close_mse = train_and_predict(train_data, test_data, target_column='close')
 
         # Step 5: Combine future test set data and predictions into a DataFrame
         results_df = test_data[['symbol', 'trade_date']].copy()
@@ -140,13 +140,17 @@ def stock_predictions_pipeline_http(request):
 
         # Step 6: Generate timestamp for unique filenames
         timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-        destination_path = f"{PREDICTION_FOLDER}random_forrest_predictions_{timestamp}.csv"
+        destination_path = f"{PREDICTION_FOLDER}random_forest_predictions_{timestamp}.csv"
 
         # Step 7: Upload predictions to GCS
         upload_predictions_to_gcs(results_df, BUCKET_NAME, destination_path)
 
         logging.info("Prediction and upload completed successfully.")
-        return {"message": "Predictions generated and uploaded successfully"}, 200
+        return {
+            "message": "Predictions generated and uploaded successfully",
+            "volume_mse": volume_mse,
+            "close_mse": close_mse
+        }, 200
 
     except Exception as e:
         logging.error(f"Pipeline execution failed: {e}")
