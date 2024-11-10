@@ -9,7 +9,8 @@ gcloud functions deploy ML_Prediction_NN \
     --service-account machine-learning@finnhub-pipeline-ba882.iam.gserviceaccount.com \
     --region us-central1 \
     --allow-unauthenticated \
-    --memory 2048MB
+    --memory 2048MB \
+    --timeout 20m
 
 # Check Result
 curl "https://us-central1-finnhub-pipeline-ba882.cloudfunctions.net/ML_Prediction_NN?file_name=cleaned_stock_data.csv"
