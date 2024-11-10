@@ -1,9 +1,0 @@
-google-cloud-storage
-google-cloud-bigquery
-pandas
-flask
-scikit-learn
-numpy
-tensorflow
-pyarrow
-pandas-gbq
