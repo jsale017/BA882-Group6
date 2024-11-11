@@ -38,4 +38,9 @@ graph TD;
     B --> C[Loading Data into BigQuery];
     C --> D[Orchestration with Prefect]
 
+graph TD;
+    A[Cleaning Data from BigQuery] --> B[Feature Engineering (7-day rolling windows)];
+    B --> C[Model Cloud Functions];
+    C --> D[Orchestration with Prefect]
+
 
