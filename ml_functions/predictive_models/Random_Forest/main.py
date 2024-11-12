@@ -5,144 +5,114 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_squared_error
 import logging
 import io
-from datetime import datetime, timedelta
+from datetime import datetime
 import re
 
-# Set up logging
 logging.basicConfig(level=logging.INFO)
 
-# Constants
 BUCKET_NAME = 'alpha_vatange_vertex_models'
 PREDICTION_FOLDER = 'training-data/stocks/predictions/'
 PROCESSED_DATA_FOLDER = 'training-data/stocks/processed_data/'
-PREDICTION_HORIZON = 5 
 
-# Initialize Cloud Storage client
 storage_client = storage.Client()
 
-# Function to find the latest training data file
-def get_latest_file(bucket_name, prefix):
+def get_latest_file(bucket_name, prefix, pattern_str):
     bucket = storage_client.bucket(bucket_name)
     blobs = list(bucket.list_blobs(prefix=prefix))
+    pattern = re.compile(pattern_str)
     
-    # Filter blobs to match the file pattern and sort by date in filename
-    pattern = re.compile(r'train_stock_data_(\d{14})\.csv')
+    # Filter blobs to match the file pattern
+    filtered_blobs = [blob for blob in blobs if pattern.search(blob.name)]
+    
+    if not filtered_blobs:
+        logging.error(f"No files found in {prefix} matching pattern: {pattern_str}")
+        raise FileNotFoundError(f"No files found in {prefix} matching pattern: {pattern_str}")
+    
+    # Sort by date in filename
     latest_blob = max(
-        (blob for blob in blobs if pattern.search(blob.name)),
+        filtered_blobs,
         key=lambda blob: datetime.strptime(pattern.search(blob.name).group(1), '%Y%m%d%H%M%S')
     )
     
     logging.info(f"Latest file found: {latest_blob.name}")
     return latest_blob.name
 
-# Function to load CSV data from GCS
+
 def load_data_from_gcs(bucket_name, file_path):
-    logging.info(f"Attempting to load data from GCS: bucket={bucket_name}, file_path={file_path}")
+    logging.info(f"Loading data from GCS: bucket={bucket_name}, file_path={file_path}")
     try:
         bucket = storage_client.bucket(bucket_name)
         blob = bucket.blob(file_path)
         data = blob.download_as_text()
         df = pd.read_csv(io.StringIO(data))
         logging.info("Data loaded successfully.")
-        logging.info(f"Sample data:\n{df.head()}")
         return df
     except Exception as e:
         logging.error(f"Error loading data from GCS: {e}")
         raise
 
-# Function to generate future test data for prediction
-def create_future_test_data(train_df, horizon):
-    logging.info("Creating future test data based on the latest date in training data.")
-    last_date = pd.to_datetime(train_df['trade_date'].max())
-    symbols = train_df['symbol'].unique()
-
-    # Create a DataFrame for future dates
-    future_dates = pd.DataFrame({
-        'trade_date': [last_date + timedelta(days=i) for i in range(1, horizon + 1)]
-    })
-
-    # Repeat for each symbol in the dataset
-    future_test_data = pd.concat([
-        future_dates.assign(symbol=symbol) for symbol in symbols
-    ]).reset_index(drop=True)
-
-    # Populate placeholder columns with recent values
-    feature_columns = [col for col in train_df.columns if col not in ['symbol', 'trade_date', 'close', 'volume']]
-    for col in feature_columns:
-        future_test_data[col] = train_df.groupby('symbol')[col].transform(lambda x: x.iloc[-1])
-
-    logging.info("Future test data created successfully with enriched features.")
-    logging.info(f"Future test data sample:\n{future_test_data.head()}")
-    return future_test_data
-
-# Function to train random forest models and make predictions
-def train_and_predict(train_df, test_df, target_column):
-    logging.info(f"Training Random Forest model for target: {target_column}")
+def train_and_predict(train_df, valid_df, target_column):
+    logging.info(f"Training Random Forest model for {target_column}")
     try:
-        # Identify feature columns by excluding non-numerical and target columns
         feature_columns = [col for col in train_df.columns if col not in ['symbol', 'trade_date', 'close', 'volume']]
-
-        # Split data into features and target
+        
+        # Training and Validation sets
         X_train, y_train = train_df[feature_columns], train_df[target_column]
-        X_test = test_df[feature_columns]
-
+        X_valid, y_valid = valid_df[feature_columns], valid_df[target_column]
+        
         # Initialize and train the Random Forest model
         model = RandomForestRegressor(random_state=42)
         model.fit(X_train, y_train)
         
-        # Predict on the future test data
-        predictions = model.predict(X_test)
+        # Predictions on the validation set
+        predictions = model.predict(X_valid)
         
-        # Calculate MSE only if there's actual target data available
-        mse = mean_squared_error(y_train, model.predict(X_train)) if target_column in train_df.columns else None
-        logging.info(f"Model training and prediction completed for {target_column}")
+        # Calculate MSE on the validation set
+        mse = mean_squared_error(y_valid, predictions)
+        logging.info(f"Model training and prediction completed for {target_column} with MSE: {mse}")
 
         return predictions, mse
     except Exception as e:
         logging.error(f"Error training model for {target_column}: {e}")
         raise
 
-# Function to upload predictions as CSV to GCS
 def upload_predictions_to_gcs(predictions_df, bucket_name, destination_path):
     logging.info(f"Uploading predictions to GCS at {destination_path}")
     try:
         bucket = storage_client.bucket(bucket_name)
         blob = bucket.blob(destination_path)
         blob.upload_from_string(predictions_df.to_csv(index=False), content_type="text/csv")
-        logging.info(f"Predictions uploaded to {destination_path} successfully.")
+        logging.info(f"Predictions uploaded successfully to {destination_path}.")
     except Exception as e:
         logging.error(f"Error uploading predictions to GCS: {e}")
         raise
 
-# Main pipeline function
 @functions_framework.http
 def stock_predictions_pipeline_http(request):
     try:
         logging.info("Starting stock predictions pipeline.")
 
-        # Step 1: Get the latest training data file
-        latest_file_path = get_latest_file(BUCKET_NAME, PROCESSED_DATA_FOLDER)
+        # Step 1: Load the latest training and validation data files
+        latest_train_file_path = get_latest_file(BUCKET_NAME, PROCESSED_DATA_FOLDER, r'train_stock_data_(\d{14})\.csv')
+        latest_valid_file_path = get_latest_file(BUCKET_NAME, PROCESSED_DATA_FOLDER, r'validation_stock_data_(\d{14})\.csv')
 
-        # Step 2: Load the latest training data
-        train_data = load_data_from_gcs(BUCKET_NAME, latest_file_path)
+        train_data = load_data_from_gcs(BUCKET_NAME, latest_train_file_path)
+        valid_data = load_data_from_gcs(BUCKET_NAME, latest_valid_file_path)
 
-        # Step 3: Generate future test data
-        test_data = create_future_test_data(train_data, PREDICTION_HORIZON)
+        # Step 2: Train models and generate predictions on the validation set
+        volume_predictions, volume_mse = train_and_predict(train_data, valid_data, target_column='volume')
+        close_predictions, close_mse = train_and_predict(train_data, valid_data, target_column='close')
 
-        # Step 4: Train models and generate predictions on the future test set
-        volume_predictions, volume_mse = train_and_predict(train_data, test_data, target_column='volume')
-        close_predictions, close_mse = train_and_predict(train_data, test_data, target_column='close')
-
-        # Step 5: Combine future test set data and predictions into a DataFrame
-        results_df = test_data[['symbol', 'trade_date']].copy()
+        # Step 3: Combine validation set data and predictions into a DataFrame
+        results_df = valid_data[['symbol', 'trade_date']].copy()
         results_df['volume_prediction'] = volume_predictions
         results_df['close_prediction'] = close_predictions
 
-        # Step 6: Generate timestamp for unique filenames
+        # Step 4: Generate timestamp for unique filenames
         timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
         destination_path = f"{PREDICTION_FOLDER}random_forest_predictions_{timestamp}.csv"
 
-        # Step 7: Upload predictions to GCS
+        # Step 5: Upload predictions to GCS
         upload_predictions_to_gcs(results_df, BUCKET_NAME, destination_path)
 
         logging.info("Prediction and upload completed successfully.")
