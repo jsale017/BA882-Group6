@@ -19,6 +19,8 @@
 !ml_functions/rolling_window_split_data/Dockerfile
 !ml_functions/rolling_window_split_data/main.py
 !ml_functions/rolling_window_split_data/requirements.txt
+!ml_functions/flows/ml_pipeline.py
+!ml_functions/flows/deploy.py
 =======
 ../.local/
 ../.rustup/
