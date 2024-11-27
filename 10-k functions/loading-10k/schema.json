@@ -1,0 +1,350 @@
+{
+  "creationTime": "1732737453932",
+  "etag": "DzzK1kxq9UzN1uKmdOgVCg==",
+  "id": "finnhub-pipeline-ba882:financial_data.ten_ks",
+  "kind": "bigquery#table",
+  "lastModifiedTime": "1732738291586",
+  "location": "US",
+  "numActiveLogicalBytes": "658185",
+  "numActivePhysicalBytes": "85735",
+  "numBytes": "658185",
+  "numCurrentPhysicalBytes": "85735",
+  "numLongTermBytes": "0",
+  "numLongTermLogicalBytes": "0",
+  "numLongTermPhysicalBytes": "0",
+  "numRows": "5",
+  "numTimeTravelPhysicalBytes": "0",
+  "numTotalLogicalBytes": "658185",
+  "numTotalPhysicalBytes": "85735",
+  "schema": {
+    "fields": [
+      {
+        "fields": [
+          {
+            "fields": [
+              {
+                "mode": "NULLABLE",
+                "name": "filingTo",
+                "type": "DATE"
+              },
+              {
+                "mode": "NULLABLE",
+                "name": "filingCount",
+                "type": "INTEGER"
+              },
+              {
+                "mode": "NULLABLE",
+                "name": "filingFrom",
+                "type": "DATE"
+              },
+              {
+                "mode": "NULLABLE",
+                "name": "name",
+                "type": "STRING"
+              }
+            ],
+            "mode": "REPEATED",
+            "name": "files",
+            "type": "RECORD"
+          },
+          {
+            "fields": [
+              {
+                "mode": "REPEATED",
+                "name": "primaryDocDescription",
+                "type": "STRING"
+              },
+              {
+                "mode": "REPEATED",
+                "name": "isInlineXBRL",
+                "type": "INTEGER"
+              },
+              {
+                "mode": "REPEATED",
+                "name": "primaryDocument",
+                "type": "STRING"
+              },
+              {
+                "mode": "REPEATED",
+                "name": "isXBRL",
+                "type": "INTEGER"
+              },
+              {
+                "mode": "REPEATED",
+                "name": "core_type",
+                "type": "STRING"
+              },
+              {
+                "mode": "REPEATED",
+                "name": "size",
+                "type": "INTEGER"
+              },
+              {
+                "mode": "REPEATED",
+                "name": "act",
+                "type": "INTEGER"
+              },
+              {
+                "mode": "REPEATED",
+                "name": "items",
+                "type": "STRING"
+              },
+              {
+                "mode": "REPEATED",
+                "name": "filmNumber",
+                "type": "INTEGER"
+              },
+              {
+                "mode": "REPEATED",
+                "name": "form",
+                "type": "STRING"
+              },
+              {
+                "mode": "REPEATED",
+                "name": "acceptanceDateTime",
+                "type": "TIMESTAMP"
+              },
+              {
+                "mode": "REPEATED",
+                "name": "fileNumber",
+                "type": "STRING"
+              },
+              {
+                "mode": "REPEATED",
+                "name": "reportDate",
+                "type": "DATE"
+              },
+              {
+                "mode": "REPEATED",
+                "name": "filingDate",
+                "type": "DATE"
+              },
+              {
+                "mode": "REPEATED",
+                "name": "accessionNumber",
+                "type": "STRING"
+              }
+            ],
+            "mode": "NULLABLE",
+            "name": "recent",
+            "type": "RECORD"
+          }
+        ],
+        "mode": "NULLABLE",
+        "name": "filings",
+        "type": "RECORD"
+      },
+      {
+        "fields": [
+          {
+            "mode": "NULLABLE",
+            "name": "to",
+            "type": "TIMESTAMP"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "from",
+            "type": "TIMESTAMP"
+          },
+          {
+            "mode": "NULLABLE",
+            "name": "name",
+            "type": "STRING"
+          }
+        ],
+        "mode": "REPEATED",
+        "name": "formerNames",
+        "type": "RECORD"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "stateOfIncorporation",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "fiscalYearEnd",
+        "type": "INTEGER"
+      },
+      {
+        "fields": [
+          {
+            "fields": [
+              {
+                "mode": "NULLABLE",
+                "name": "zipCode",
+                "type": "STRING"bq update --table finnhub-pipeline-ba882:financial_data.ten_ks schema.json
+
+              },
+              {
+                "mode": "NULLABLE",
+                "name": "stateOrCountry",
+                "type": "STRING"
+              },
+              {
+                "mode": "NULLABLE",
+                "name": "city",
+                "type": "STRING"
+              },
+              {
+                "mode": "NULLABLE",
+                "name": "street2",
+                "type": "STRING"
+              },
+              {
+                "mode": "NULLABLE",
+                "name": "stateOrCountryDescription",
+                "type": "STRING"
+              },
+              {
+                "mode": "NULLABLE",
+                "name": "street1",
+                "type": "STRING"
+              }
+            ],
+            "mode": "NULLABLE",
+            "name": "business",
+            "type": "RECORD"
+          },
+          {
+            "fields": [
+              {
+                "mode": "NULLABLE",
+                "name": "zipCode",
+                "type": "STRING"
+              },
+              {
+                "mode": "NULLABLE",
+                "name": "stateOrCountry",
+                "type": "STRING"
+              },
+              {
+                "mode": "NULLABLE",
+                "name": "city",
+                "type": "STRING"
+              },
+              {
+                "mode": "NULLABLE",
+                "name": "street2",
+                "type": "STRING"
+              },
+              {
+                "mode": "NULLABLE",
+                "name": "stateOrCountryDescription",
+                "type": "STRING"
+              },
+              {
+                "mode": "NULLABLE",
+                "name": "street1",
+                "type": "STRING"
+              }
+            ],
+            "mode": "NULLABLE",
+            "name": "mailing",
+            "type": "RECORD"
+          }
+        ],
+        "mode": "NULLABLE",
+        "name": "addresses",
+        "type": "RECORD"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "investorWebsite",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "flags",
+        "type": "STRING"
+      },
+      {
+        "mode": "REPEATED",
+        "name": "exchanges",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "phone",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "description",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "sicDescription",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "ein",
+        "type": "INTEGER"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "sic",
+        "type": "INTEGER"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "website",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "name",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "insiderTransactionForOwnerExists",
+        "type": "INTEGER"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "ownerOrg",
+        "type": "STRING"
+      },
+      {
+        "mode": "REPEATED",
+        "name": "tickers",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "entityType",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "stateOfIncorporationDescription",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "insiderTransactionForIssuerExists",
+        "type": "INTEGER"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "category",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "cik",
+        "type": "INTEGER"
+      }
+    ]
+  },
+  "selfLink": "https://bigquery.googleapis.com/bigquery/v2/projects/finnhub-pipeline-ba882/datasets/financial_data/tables/ten_ks",
+  "tableReference": {
+    "datasetId": "financial_data",
+    "projectId": "finnhub-pipeline-ba882",
+    "tableId": "ten_ks"
+  },
+  "type": "TABLE"
+}

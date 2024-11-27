@@ -1,0 +1,6 @@
+flask
+google-cloud-storage
+google-cloud-secret-manager
+google-cloud-bigquery
+requests
+bs4
