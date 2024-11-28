@@ -6,7 +6,7 @@ echo "======================================================"
 echo "build (no cache)"
 echo "======================================================"
 
-docker build --no-cache -t gcr.io/YOUR_PROJECT_HERE/streamlit-genai-apps .
+docker build --no-cache -t gcr.io/finnhub-pipeline-ba882/streamlit-genai-apps .
 
 echo "======================================================"
 echo "push"
@@ -24,5 +24,5 @@ gcloud run deploy streamlit-genai-apps \
     --platform managed \
     --region us-central1 \
     --allow-unauthenticated \
-    --service-account luca@bu.edu \
+    --service-account 676257416424-compute@developer.gserviceaccount.com \
     --memory 1Gi

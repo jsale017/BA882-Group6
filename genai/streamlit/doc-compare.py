@@ -1,7 +1,6 @@
 # imports
-import streamlit as st 
+import streamlit as st
 import PyPDF2
-import os
 import io
 import vertexai
 from vertexai.generative_models import GenerativeModel, Part
@@ -9,19 +8,16 @@ from vertexai.generative_models import GenerativeModel, Part
 # https://cloud.google.com/vertex-ai/generative-ai/docs/model-reference/inference#supported-models
 model = GenerativeModel("gemini-1.5-pro-001")
 
-# resources:
-# https://cloud.google.com/vertex-ai/generative-ai/docs/multimodal/document-understanding
-
 ############################################## project setup
 GCP_PROJECT = 'finnhub-pipeline-ba882'
 GCP_REGION = "us-central1"
 
 vertexai.init(project=GCP_PROJECT, location=GCP_REGION)
 
-# https://cloud.google.com/vertex-ai/generative-ai/docs/model-reference/inference#supported-models
-model = GenerativeModel("gemini-1.5-pro-001", )
-
-############################################## streamlit setup
+# Streamlit setup
+st.image("https://cdn.mos.cms.futurecdn.net/EFRicr9v8AhNXhw2iW3qfJ-1600-80.jpg.webp")
+st.title("Financial Risk Analysis")
+st.markdown("Analyze financial documents for key risks, opportunities, and overall sentiment.")
 
 # Function to extract text from PDF
 def extract_text_from_pdf(pdf_file):
@@ -35,88 +31,71 @@ def extract_text_from_pdf(pdf_file):
         st.error(f"Error extracting text from PDF: {str(e)}")
         return None
 
-# Function to compare texts using Vertex AI
-def compare_texts(text1, text2):
+# Function to analyze financial risks and sentiment using Vertex AI
+def analyze_financial_risks(text):
     try:
         prompt = f"""
-        Compare and contrast the following two texts:
+        Analyze the following financial document for:
         
-        Text 1:
-        {text1[:2000]}  # Limiting text length to avoid token limits
+        1. Key financial risks mentioned (e.g., market risk, credit risk, operational risk).
+        2. Opportunities or strengths highlighted in the document.
+        3. The overall sentiment of the document (positive, neutral, or negative).
+        4. Any actionable recommendations based on the content.
+
+        Financial Document:
+        {text[:2000]}  # Limiting text length to avoid token limits
         
-        Text 2:
-        {text2[:2000]}
-        
-        Please provide:
-        1. Main similarities between the documents
-        2. Key differences
-        3. Unique points in each document
-        4. Overall summary of comparison
-        
-        Format the response in a clear, structured way.  
+        Provide the response in a clear, structured format.
         """
         response = model.generate_content(prompt)
 
         return response.text
     except Exception as e:
-        st.error(f"Error in Vertex AI comparison: {str(e)}")
+        st.error(f"Error in Vertex AI analysis: {str(e)}")
         return None
 
+# File uploader
+file = st.sidebar.file_uploader("Upload a Financial Document (PDF)", type=['pdf'])
 
-
-st.image("https://questromworld.bu.edu/ftmba/wp-content/uploads/sites/42/2021/11/Questrom-1-1.png")
-st.title("PDF Comparison Analysis")
-
-
-
-# File uploaders
-file1 = st.sidebar.file_uploader("Upload first PDF", type=['pdf'], accept_multiple_files=False)
-file2 = st.sidebar.file_uploader("Upload second PDF", type=['pdf'], accept_multiple_files=False)
-
-if file1 and file2:
-    st.success("PDFs processed successfully!  Click the Button below to start the analysis.")
-    with st.spinner("Processing PDFs..."):
-        # Extract text from PDFs
-        text1 = extract_text_from_pdf(file1)
-        text2 = extract_text_from_pdf(file2)
+if file:
+    st.success("PDF uploaded successfully! Click the button below to start the analysis.")
+    with st.spinner("Processing PDF..."):
+        # Extract text from PDF
+        text = extract_text_from_pdf(file)
         
-    if text1 and text2:
-        if st.button("Compare Documents"):
-            with st.spinner("Analyzing documents..."):
-                comparison_result = compare_texts(text1, text2)
+    if text:
+        if st.button("Analyze Financial Risks"):
+            with st.spinner("Analyzing document..."):
+                analysis_result = analyze_financial_risks(text)
                 
-                if comparison_result:
-                    st.subheader("Comparison Results")
-                    st.markdown(comparison_result)
+                if analysis_result:
+                    st.subheader("Analysis Results")
+                    st.markdown(analysis_result)
                     
-                    # Option to download comparison
+                    # Option to download the analysis
                     st.download_button(
-                        label="Download Comparison Results",
-                        data=comparison_result,
-                        file_name="comparison_results.txt",
+                        label="Download Analysis Results",
+                        data=analysis_result,
+                        file_name="financial_risk_analysis.txt",
                         mime="text/plain"
                     )
 
-                    # here is the prompt used
+                    # Show the prompt used
                     st.markdown("""
 
-                    ### The Prompt to generate the comparison: 
-
-                    Compare and contrast the following two texts:
-        
-                    Text 1:
-                    {text1[:2000]}  # Limiting text length to avoid token limits
+                    ### The Prompt Used for Analysis:
                     
-                    Text 2:
-                    {text2[:2000]}
+                    Analyze the following financial document for:
                     
-                    Please provide:
-                    1. Main similarities between the documents
-                    2. Key differences
-                    3. Unique points in each document
-                    4. Overall summary of comparison
+                    1. Key financial risks mentioned (e.g., market risk, credit risk, operational risk).
+                    2. Opportunities or strengths highlighted in the document.
+                    3. The overall sentiment of the document (positive, neutral, or negative).
+                    4. Any actionable recommendations based on the content.
                     
-                    Format the response in a clear, structured way.  
+                    Financial Document:
+                    {text[:2000]}  # Limiting text length to avoid token limits
+                    
+                    Provide the response in a clear, structured format.
                     """)
     else:
-        st.error("Error processing one or both PDFs. Please try again.")
+        st.error("Error processing the PDF. Please try again.")
