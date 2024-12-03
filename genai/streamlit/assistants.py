@@ -21,7 +21,7 @@ st.subheader("Your AI Assistant for Financial Insights")
 st.sidebar.header("Get Started with These Questions")
 pre_created_questions = [
     "What was the closing price for Microsoft over the last 5 days?",
-    "What is the highest price for Apple stock in the last 3 days?",
+    "What is the next five-day prediction for Microsoft based on the XGBoost model?",
     "Can you explain why Netflix's stock price might fluctuate?",
     "What are some factors that influence Amazon's opening stock prices?",
     "What role does trading volume play in stock price volatility?",
@@ -88,101 +88,83 @@ def extract_stock_symbol(question):
 def involves_valid_field(question):
     field_mappings = {
         "closing price": "close",
-        "close": "close",
         "volume": "volume",
         "highest price": "high",
-        "high": "high",
         "lowest price": "low",
-        "low": "low",
         "opening price": "open",
-        "open": "open"
     }
     for key, value in field_mappings.items():
         if key in question.lower():
             return value
     return None
 
-# Query specific data from the trades table
-def query_trades_data(stock_symbol, field, days):
-    if not field:  # Ensure the field is valid
-        st.error("The requested field is not valid. Please ask about close, volume, high, low, or open.")
-        return None
-
-    sql_query = f"""
-    SELECT DISTINCT trade_date, {field}
-    FROM `finnhub-pipeline-ba882.financial_data.trades`
-    WHERE symbol = '{stock_symbol}'
-    ORDER BY trade_date DESC
-    LIMIT {days}
-    """
-    st.write(f"Executing SQL query:\n{sql_query}")  # Debugging: Display the query
-    df = query_bigquery(sql_query)
-
-    if df is not None:
-        st.write("Query Result Preview:", df.head())  # Debugging: Display the result
-        if field in df.columns:
-            return df
-        else:
-            st.error(f"The field '{field}' does not exist in the returned data.")
-    else:
-        st.error("No data returned from BigQuery.")
+# Check if the question asks about predictions and determine the model
+def involves_prediction(question):
+    if "xgboost" in question.lower():
+        return "finnhub-pipeline-ba882.financial_data.ML_predictions_xgboost_predictions"
+    elif "random forest" in question.lower():
+        return "finnhub-pipeline-ba882.financial_data.ML_predictions_random_forest_predictions"
     return None
+
+# Query specific data from the trades table or predictions table
+def query_data(stock_symbol, field=None, days=None, prediction_table=None):
+    if prediction_table:
+        # Prediction query
+        sql_query = f"""
+        SELECT DISTINCT trade_date, volume_prediction, close_prediction
+        FROM `{prediction_table}`
+        WHERE symbol = '{stock_symbol}'
+        ORDER BY trade_date ASC
+        LIMIT {days}
+        """
+    else:
+        # Historical trades query
+        sql_query = f"""
+        SELECT DISTINCT trade_date, {field}
+        FROM `finnhub-pipeline-ba882.financial_data.trades`
+        WHERE symbol = '{stock_symbol}'
+        ORDER BY trade_date DESC
+        LIMIT {days}
+        """
+    return query_bigquery(sql_query)
+
+# Main logic to handle user questions
+def handle_question(prompt):
+    stock_symbol = extract_stock_symbol(prompt)
+    field_query = involves_valid_field(prompt)
+    prediction_table = involves_prediction(prompt)
+
+    if stock_symbol and (field_query or prediction_table):
+        with st.spinner(f"Fetching data for {stock_symbol}..."):
+            # Determine the number of days
+            if "1 day" in prompt.lower() or "tomorrow" in prompt.lower():
+                days = 1
+            elif "3 days" in prompt.lower():
+                days = 3
+            elif "5 days" in prompt.lower() or "next five days" in prompt.lower():
+                days = 5
+            else:
+                days = 5  # Default to 5 days
+
+            # Query BigQuery for data
+            df = query_data(stock_symbol, field=field_query, days=days, prediction_table=prediction_table)
+            if df is not None and not df.empty:
+                if prediction_table:
+                    st.write(f"**Predictions for {stock_symbol.upper()} (Next {days} Days):**")
+                else:
+                    st.write(f"**{field_query.capitalize()} for {stock_symbol.upper()} (Last {days} Days):**")
+                st.dataframe(df)
+            else:
+                st.error(f"No data found for {stock_symbol.upper()} in the selected timeframe.")
+    else:
+        # Route to LLM for general questions
+        response = get_chat_response(chat_session, prompt)
+        st.chat_message("assistant").markdown(response)
 
 # Handle pre-created questions
 if st.sidebar.button("Ask Selected Question"):
-    prompt = selected_question
-    stock_symbol = extract_stock_symbol(prompt)
-    field_query = involves_valid_field(prompt)
-
-    if stock_symbol and field_query:
-        with st.spinner(f"Fetching {field_query} data for {stock_symbol}..."):
-            # Determine the number of days
-            if "1 day" in prompt.lower():
-                days = 1
-            elif "3 days" in prompt.lower():
-                days = 3
-            elif "5 days" in prompt.lower():
-                days = 5
-            else:
-                days = 5  # Default to 5 days
-
-            # Query BigQuery for data
-            df = query_trades_data(stock_symbol, field_query, days)
-            if df is not None and not df.empty:
-                st.write(f"**{field_query.capitalize()} for {stock_symbol.upper()} (Last {days} Days):**")
-                st.dataframe(df)
-            else:
-                st.error(f"No data found for '{field_query}' of {stock_symbol.upper()} in the last {days} days.")
-    else:
-        # General LLM response for unrelated questions
-        response = get_chat_response(chat_session, prompt)
-        st.chat_message("assistant").markdown(response)
+    handle_question(selected_question)
 
 # Handle user-input questions
 if prompt := st.chat_input("Ask a financial question:"):
-    stock_symbol = extract_stock_symbol(prompt)
-    field_query = involves_valid_field(prompt)
-
-    if stock_symbol and field_query:
-        with st.spinner(f"Fetching {field_query} data for {stock_symbol}..."):
-            # Determine the number of days
-            if "1 day" in prompt.lower():
-                days = 1
-            elif "3 days" in prompt.lower():
-                days = 3
-            elif "5 days" in prompt.lower():
-                days = 5
-            else:
-                days = 5  # Default to 5 days
-
-            # Query BigQuery for data
-            df = query_trades_data(stock_symbol, field_query, days)
-            if df is not None and not df.empty:
-                st.write(f"**{field_query.capitalize()} for {stock_symbol.upper()} (Last {days} Days):**")
-                st.dataframe(df)
-            else:
-                st.error(f"No data found for '{field_query}' of {stock_symbol.upper()} in the last {days} days.")
-    else:
-        # General LLM response for unrelated questions
-        response = get_chat_response(chat_session, prompt)
-        st.chat_message("assistant").markdown(response)
+    handle_question(prompt)
