@@ -1,18 +1,22 @@
 import functions_framework
 import pandas as pd
-from google.cloud import storage
+from google.cloud import storage, bigquery
+from google.cloud.exceptions import NotFound
 from xgboost import XGBRegressor
 from sklearn.metrics import mean_squared_error
 import logging
 import io
-from datetime import datetime
+from datetime import datetime, timedelta
 import re
 
 logging.basicConfig(level=logging.INFO)
 
+# Constants
 BUCKET_NAME = 'alpha_vatange_vertex_models'
 PREDICTION_FOLDER = 'training-data/stocks/predictions/'
 PROCESSED_DATA_FOLDER = 'training-data/stocks/processed_data/'
+BIGQUERY_DATASET = 'financial_data'
+BIGQUERY_TABLE = 'ML_predictions_xgboost_predictions'
 
 storage_client = storage.Client()
 
@@ -60,7 +64,7 @@ def train_and_predict(train_df, valid_df, target_column):
         X_valid, y_valid = valid_df[feature_columns], valid_df[target_column]
         
         # Initialize and train the XGBoost model
-        model = XGBRegressor(random_state=42)
+        model = XGBRegressor(random_state=42, use_label_encoder=False)
         model.fit(X_train, y_train)
         
         # Predictions on the validation set
@@ -86,39 +90,152 @@ def upload_predictions_to_gcs(predictions_df, bucket_name, destination_path):
         logging.error(f"Error uploading predictions to GCS: {e}")
         raise
 
+def ensure_dataset_exists(client, dataset_name):
+    """
+    Ensure the BigQuery dataset exists.
+    """
+    try:
+        client.get_dataset(dataset_name)
+        logging.info(f"Dataset {dataset_name} already exists.")
+    except NotFound:
+        logging.info(f"Dataset {dataset_name} not found. Creating dataset...")
+        dataset = bigquery.Dataset(f"{client.project}.{dataset_name}")
+        client.create_dataset(dataset)
+        logging.info(f"Dataset {dataset_name} created successfully.")
+
+def create_table_if_not_exists(client, dataset_name, table_name):
+    """
+    Automatically create the BigQuery table if it doesn't exist.
+    """
+    table_id = f"{client.project}.{dataset_name}.{table_name}"
+    try:
+        client.get_table(table_id)  # Check if table exists
+        logging.info(f"Table {table_id} already exists.")
+    except NotFound:
+        logging.info(f"Table {table_id} not found. Creating table...")
+        schema = [
+            bigquery.SchemaField("symbol", "STRING"),
+            bigquery.SchemaField("trade_date", "DATE"),
+            bigquery.SchemaField("volume_prediction", "FLOAT"),
+            bigquery.SchemaField("close_prediction", "FLOAT"),
+        ]
+        table = bigquery.Table(table_id, schema=schema)
+        client.create_table(table)
+        logging.info(f"Table {table_id} created successfully.")
+
+def save_predictions_to_bigquery(predictions_df, dataset_name, table_name):
+    """
+    Save predictions DataFrame to a BigQuery table. Overwrites predictions for the same dates.
+    """
+    logging.info(f"Saving predictions to BigQuery: {dataset_name}.{table_name}")
+    try:
+        client = bigquery.Client()
+
+        # Ensure dataset and table exist
+        ensure_dataset_exists(client, dataset_name)
+        create_table_if_not_exists(client, dataset_name, table_name)
+
+        # Set table reference
+        table_id = f"{client.project}.{dataset_name}.{table_name}"
+
+        # Convert trade_date to datetime and ensure it is valid
+        predictions_df["trade_date"] = pd.to_datetime(predictions_df["trade_date"], errors="coerce")
+        if predictions_df["trade_date"].isnull().any():
+            raise ValueError("Invalid dates found in the 'trade_date' column.")
+
+        # Get the unique dates and symbols from the new predictions
+        unique_dates = predictions_df["trade_date"].dt.date.unique()  # Convert to DATE type
+        unique_symbols = predictions_df["symbol"].unique()
+
+        # Construct the DELETE query
+        delete_query = f"""
+        DELETE FROM `{table_id}`
+        WHERE trade_date IN UNNEST([{', '.join(f'DATE("{date}")' for date in unique_dates)}])
+        AND symbol IN UNNEST([{', '.join(f'"{symbol}"' for symbol in unique_symbols)}])
+        """
+        logging.info(f"Running delete query: {delete_query}")
+        client.query(delete_query).result()
+        logging.info("Existing predictions deleted successfully.")
+
+        # Define job configuration for BigQuery upload
+        job_config = bigquery.LoadJobConfig(
+            write_disposition=bigquery.WriteDisposition.WRITE_APPEND
+        )
+
+        # Upload DataFrame to BigQuery
+        job = client.load_table_from_dataframe(
+            predictions_df, table_id, job_config=job_config
+        )
+        job.result()
+        logging.info(f"Predictions saved successfully to BigQuery: {table_id}")
+    except Exception as e:
+        logging.error(f"Error saving predictions to BigQuery: {e}")
+        raise
+
 @functions_framework.http
 def stock_predictions_pipeline_http(request):
     try:
         logging.info("Starting stock predictions pipeline.")
 
-        # Step 1: Load the latest training and validation data files
+        # Step 1: Load the latest training data file
         latest_train_file_path = get_latest_file(BUCKET_NAME, PROCESSED_DATA_FOLDER, r'train_stock_data_(\d{14})\.csv')
-        latest_valid_file_path = get_latest_file(BUCKET_NAME, PROCESSED_DATA_FOLDER, r'validation_stock_data_(\d{14})\.csv')
 
         train_data = load_data_from_gcs(BUCKET_NAME, latest_train_file_path)
-        valid_data = load_data_from_gcs(BUCKET_NAME, latest_valid_file_path)
 
-        # Step 2: Train models and generate predictions on the validation set
-        volume_predictions, volume_mse = train_and_predict(train_data, valid_data, target_column='volume')
-        close_predictions, close_mse = train_and_predict(train_data, valid_data, target_column='close')
+        # Step 2: Ensure trade_date is in datetime format and filter data up to yesterday
+        train_data["trade_date"] = pd.to_datetime(train_data["trade_date"])
+        yesterday = datetime.now() - timedelta(days=1)
+        train_data = train_data[train_data["trade_date"] <= pd.Timestamp(yesterday)]
 
-        # Step 3: Combine validation set data and predictions into a DataFrame
-        results_df = valid_data[['symbol', 'trade_date']].copy()
-        results_df['volume_prediction'] = volume_predictions
-        results_df['close_prediction'] = close_predictions
+        # Step 3: Prepare data for predictions
+        stocks = train_data["symbol"].unique()
+        prediction_results = []
 
-        # Step 4: Generate timestamp for unique filenames
-        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-        destination_path = f"{PREDICTION_FOLDER}xgboost_predictions_{timestamp}.csv"
+        for stock in stocks:
+            stock_data = train_data[train_data["symbol"] == stock]
 
-        # Step 5: Upload predictions to GCS
-        upload_predictions_to_gcs(results_df, BUCKET_NAME, destination_path)
+            # Ensure data is sorted by date
+            stock_data = stock_data.sort_values(by="trade_date")
+
+            # Use all available data to train
+            feature_columns = [col for col in stock_data.columns if col not in ['symbol', 'trade_date', 'close', 'volume']]
+
+            X_train = stock_data[feature_columns]
+            y_volume = stock_data["volume"]
+            y_close = stock_data["close"]
+
+            # Initialize and train models
+            volume_model = XGBRegressor(random_state=42, use_label_encoder=False)
+            volume_model.fit(X_train, y_volume)
+
+            close_model = XGBRegressor(random_state=42, use_label_encoder=False)
+            close_model.fit(X_train, y_close)
+
+            # Create features for the next 5 days
+            last_features = stock_data[feature_columns].iloc[-1].values.reshape(1, -1)
+            for i in range(1, 6):
+                next_date = yesterday.date() + timedelta(days=i)
+                volume_prediction = volume_model.predict(last_features)[0]
+                close_prediction = close_model.predict(last_features)[0]
+
+                # Append results for the stock
+                prediction_results.append({
+                    "symbol": stock,
+                    "trade_date": next_date,
+                    "volume_prediction": volume_prediction,
+                    "close_prediction": close_prediction
+                })
+
+        # Step 4: Create a DataFrame for the predictions
+        results_df = pd.DataFrame(prediction_results)
+
+        # Step 5: Upload predictions to BigQuery
+        save_predictions_to_bigquery(results_df, BIGQUERY_DATASET, BIGQUERY_TABLE)
 
         logging.info("Prediction and upload completed successfully.")
         return {
-            "message": "Predictions generated and uploaded successfully",
-            "volume_mse": volume_mse,
-            "close_mse": close_mse
+            "message": "5-day predictions generated and uploaded successfully.",
+            "predictions": results_df.to_dict(orient="records")
         }, 200
 
     except Exception as e:

@@ -1,6 +1,7 @@
-google-cloud-storage
-google-cloud-aiplatform
 pandas
-functions-framework
-scikit-learn
+google-cloud-storage
+google-cloud-bigquery
+functions_framework
 xgboost
+scikit-learn
+pyarrow

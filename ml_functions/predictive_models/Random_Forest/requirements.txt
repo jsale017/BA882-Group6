@@ -3,3 +3,5 @@ google-cloud-aiplatform
 pandas
 functions-framework
 scikit-learn
+google-cloud-bigquery
+pyarrow
