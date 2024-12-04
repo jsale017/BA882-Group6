@@ -2,14 +2,13 @@ import functions_framework
 import pandas as pd
 from google.cloud import storage, bigquery
 from xgboost import XGBRegressor
-from sklearn.metrics import mean_squared_error
-import logging
-import io
-from datetime import datetime, timedelta
-import numpy as np
 from sklearn.preprocessing import MinMaxScaler
+import logging
+from datetime import datetime, timedelta
+import io
 import re
 
+# Configure logging
 logging.basicConfig(level=logging.INFO)
 
 # Constants
@@ -18,9 +17,11 @@ PROCESSED_DATA_FOLDER = 'training-data/stocks/processed_data/'
 BIGQUERY_DATASET = 'financial_data'
 BIGQUERY_TABLE = 'ML_predictions_xgboost_predictions'
 
+# Initialize storage client
 storage_client = storage.Client()
 
 def get_latest_file(bucket_name, prefix, pattern_str):
+    """Get the latest file from GCS based on a timestamp pattern."""
     bucket = storage_client.bucket(bucket_name)
     blobs = list(bucket.list_blobs(prefix=prefix))
     pattern = re.compile(pattern_str)
@@ -39,6 +40,7 @@ def get_latest_file(bucket_name, prefix, pattern_str):
     return latest_blob.name
 
 def load_data_from_gcs(bucket_name, file_path):
+    """Load CSV data from GCS."""
     try:
         bucket = storage_client.bucket(bucket_name)
         blob = bucket.blob(file_path)
@@ -49,6 +51,7 @@ def load_data_from_gcs(bucket_name, file_path):
         raise
 
 def save_predictions_to_bigquery(predictions_df, dataset_name, table_name):
+    """Save predictions to BigQuery."""
     try:
         client = bigquery.Client()
         table_id = f"{client.project}.{dataset_name}.{table_name}"
@@ -65,10 +68,13 @@ def save_predictions_to_bigquery(predictions_df, dataset_name, table_name):
 
 @functions_framework.http
 def stock_predictions_pipeline_http(request):
+    """Cloud Function entry point for stock predictions."""
     try:
+        # Get the latest training data file
         latest_train_file_path = get_latest_file(BUCKET_NAME, PROCESSED_DATA_FOLDER, r'train_stock_data_(\d{14})\.csv')
         train_data = load_data_from_gcs(BUCKET_NAME, latest_train_file_path)
 
+        # Preprocess training data
         train_data["trade_date"] = pd.to_datetime(train_data["trade_date"])
         yesterday = datetime.now() - timedelta(days=1)
         train_data = train_data[train_data["trade_date"] <= pd.Timestamp(yesterday)]
@@ -97,7 +103,6 @@ def stock_predictions_pipeline_http(request):
             close_model.fit(scaled_features, y_close)
 
             # Start predictions with the last feature vector
-            # Start predictions with the last feature vector
             last_features = scaled_features[-1].reshape(1, -1)  # Ensure last_features has the correct shape
 
             for i in range(1, 6):
@@ -107,28 +112,26 @@ def stock_predictions_pipeline_http(request):
                 volume_prediction = volume_model.predict(last_features)[0]
                 close_prediction = close_model.predict(last_features)[0]
 
-                # Decode predictions back to original scale
-                decoded_volume = scaler.inverse_transform([[*last_features.flatten()[:-2], 0, volume_prediction]])[0][-1]
-                decoded_close = scaler.inverse_transform([[*last_features.flatten()[:-2], close_prediction, 0]])[0][-2]
-
                 # Append the prediction
                 prediction_results.append({
                     "symbol": stock,
                     "trade_date": next_date,
-                    "volume_prediction": decoded_volume,
-                    "close_prediction": decoded_close
+                    "volume_prediction": volume_prediction,
+                    "close_prediction": close_prediction
                 })
 
-                # Update last features for the next prediction
+                # Update last_features for the next prediction
                 updated_features = last_features.flatten()  # Flatten to update specific values
-                updated_features[-2] = scaler.transform([[*last_features.flatten()[:-2], decoded_close, 0]])[0][-2]  # Update close
-                updated_features[-1] = scaler.transform([[*last_features.flatten()[:-2], 0, decoded_volume]])[0][-1]  # Update volume
+
+                # Update `close` and `volume` predictions in the scaled range
+                updated_features[-2] = scaler.transform([[*last_features.flatten()[:-2], close_prediction, 0]])[0][-2]  # Update close
+                updated_features[-1] = scaler.transform([[*last_features.flatten()[:-2], 0, volume_prediction]])[0][-1]  # Update volume
 
                 last_features = updated_features.reshape(1, -1)  # Reshape back to original dimensions
-                logging.info(f"Updated features for {next_date}: {last_features}")
 
+        # Save predictions to BigQuery
         results_df = pd.DataFrame(prediction_results)
-        save_predictions_to_bigquery(results_df, "financial_data", "ML_predictions_xgboost_predictions")
+        save_predictions_to_bigquery(results_df, BIGQUERY_DATASET, BIGQUERY_TABLE)
 
         return {
             "message": "5-day predictions generated and uploaded successfully.",
