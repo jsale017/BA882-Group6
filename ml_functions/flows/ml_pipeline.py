@@ -40,7 +40,7 @@ def predictive_xgboost(payload):
 @task(retries=2)
 def rnn_lstm_prediction():
     """Perform RNN/LSTM prediction on the stock data"""
-    url = "https://us-central1-finnhub-pipeline-ba882.cloudfunctions.net/lstm_rnn_predictions"
+    url = "https://us-central1-finnhub-pipeline-ba882.cloudfunctions.net/ML_Prediction_NN?file_name=cleaned_stock_data.csv"
     resp = requests.get(url)
     resp.raise_for_status()
     return resp.json()
