@@ -33,7 +33,7 @@ def predictive_random_forest(payload):
 @task(retries=2)
 def predictive_xgboost(payload):
     """Perform XGBoost prediction on the stock data"""
-    url = ""
+    url = "https://us-central1-finnhub-pipeline-ba882.cloudfunctions.net/xgboost_prediction"
     resp = invoke_gcf(url, payload=payload)
     return resp
 
