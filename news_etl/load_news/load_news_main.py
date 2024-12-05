@@ -123,4 +123,6 @@ def load_news():
 
 # Only include this if running locally (not necessary for deployment on Cloud Run)
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8080)
+    import os
+    port = int(os.environ.get("PORT", 8080))  # Default to port 8080
+    app.run(host="0.0.0.0", port=port)

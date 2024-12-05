@@ -25,7 +25,7 @@ def transform_news(payload):
 @task(retries=2)
 def load_news(payload):
     """Load the transformed news data into BigQuery"""
-    url = "https://load-news-service-676257416424.us-central1.run.app"
+    url = "https://loading-news-676257416424.us-central1.run.app"
     resp = invoke_gcf(url, payload=payload)
     return resp
 

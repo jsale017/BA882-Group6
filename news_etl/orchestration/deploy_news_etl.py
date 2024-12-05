@@ -14,7 +14,7 @@ if __name__ == "__main__":
                 "NEWS_GCF_URLS": {
                     "extract": "https://extract-news-service-676257416424.us-central1.run.app",
                     "transform": "https://transform-news-service-676257416424.us-central1.run.app",
-                    "load": "https://load-news-service-676257416424.us-central1.run.app",
+                    "load": "https://loading-news-676257416424.us-central1.run.app",
                 },
             },
             "pip_packages": [
