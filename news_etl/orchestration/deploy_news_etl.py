@@ -4,7 +4,7 @@ from prefect.events import DeploymentEventTrigger
 if __name__ == "__main__":
     flow.from_source(
         source="https://github.com/jsale017/Predictive-Financial-Analytics-APIs.git",
-        entrypoint="news_etl/orchestration/orchestration_main.py:etl_news_flow",
+        entrypoint="news_etl/orchestration/news_etl_flow.py:news_etl_flow",
     ).deploy(
         name="news-etl-pipeline",
         work_pool_name="Finance Alpha Vantage",
