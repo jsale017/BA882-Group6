@@ -1,0 +1,15 @@
+FROM python:3.9-slim
+
+# Install dependencies
+COPY requirements.txt /app/requirements.txt
+RUN pip install -r /app/requirements.txt
+
+# Copy project files
+COPY . /app
+WORKDIR /app
+
+# Expose the port
+EXPOSE 8080
+
+# Run the Flask app
+CMD ["python", "main.py"]
