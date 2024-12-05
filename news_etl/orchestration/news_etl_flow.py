@@ -1,34 +1,54 @@
-from prefect import flow
-from prefect.events import DeploymentEventTrigger
+# imports
+import requests
+from prefect import flow, task
 
+# Helper function - generic invoker for Cloud Functions
+def invoke_gcf(url: str, payload: dict):
+    response = requests.post(url, json=payload)
+    response.raise_for_status()
+    return response.json()
+
+@task(retries=2)
+def extract_news():
+    """Extract the news data into JSON on GCS"""
+    url = "https://extract-news-service-676257416424.us-central1.run.app"
+    resp = invoke_gcf(url, payload={})
+    return resp
+
+@task(retries=2)
+def transform_news(payload):
+    """Transform the news data JSON into tables on GCS"""
+    url = "https://transform-news-service-676257416424.us-central1.run.app"
+    resp = invoke_gcf(url, payload=payload)
+    return resp
+
+@task(retries=2)
+def load_news(payload):
+    """Load the transformed news data into BigQuery"""
+    url = "https://load-news-service-676257416424.us-central1.run.app"
+    resp = invoke_gcf(url, payload=payload)
+    return resp
+
+# Prefect Flow
+@flow(name="news_etl_pipeline", log_prints=True)
+def news_etl_flow():
+    """The ETL flow which orchestrates Cloud Functions for news data"""
+
+    # Step 1: Extract news data
+    extract_result = extract_news()
+    print("News data extracted successfully")
+    print(f"Extract Result: {extract_result}")
+
+    # Step 2: Transform news data
+    transform_result = transform_news(extract_result)
+    print("News data transformation completed")
+    print(f"Transform Result: {transform_result}")
+
+    # Step 3: Load news data
+    load_result = load_news(transform_result)
+    print("News data loaded into BigQuery")
+    print(f"Load Result: {load_result}")
+
+# Entry point
 if __name__ == "__main__":
-    flow.from_source(
-        source="https://github.com/jsale017/Predictive-Financial-Analytics-APIs.git",
-        entrypoint="news_etl/orchestration/news_etl_flow.py:news_etl_flow",
-    ).deploy(
-        name="news-etl-pipeline",
-        work_pool_name="Finance Alpha Vantage",
-        job_variables={
-            "env": {
-                "PROJECT_ID": "finnhub-pipeline-ba882",
-                "NEWS_GCF_URLS": {
-                    "extract": "https://us-central1-finnhub-pipeline-ba882.cloudfunctions.net/extract_news",
-                    "transform": "https://us-central1-finnhub-pipeline-ba882.cloudfunctions.net/transform_news",
-                    "load": "https://us-central1-finnhub-pipeline-ba882.cloudfunctions.net/load_news",
-                },
-            },
-            "pip_packages": [
-                "pandas", "requests", "google-cloud-storage",
-                "google-cloud-secret-manager", "google-cloud-bigquery", "prefect"
-            ]
-        },
-        tags=["prod"],
-        description="News ETL Pipeline for extracting, transforming, and loading news data into BigQuery.",
-        version="1.0.0",
-        triggers=[
-            DeploymentEventTrigger(
-                expect={"prefect.flow-run.Completed"},
-                match_related={"prefect.resource.name": "news-etl-pipeline-test"}
-            )
-        ]
-    )
+    news_etl_flow()
