@@ -17,4 +17,4 @@ WORKDIR /app
 EXPOSE 8080
 
 # Command to run the Flask app
-CMD ["python", "main.py"]
+CMD ["python", "transform_news_main.py"]
