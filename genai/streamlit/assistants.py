@@ -1,4 +1,3 @@
-# imports
 import streamlit as st
 from google.cloud import bigquery
 import pandas as pd
@@ -21,13 +20,30 @@ st.subheader("Your AI Assistant for Financial Insights")
 st.sidebar.header("Get Started with These Questions")
 pre_created_questions = [
     "What was the closing price for Microsoft over the last 5 days?",
-    "What is the next five-day prediction for Microsoft based on the XGBoost model?",
+    "What is the next five-day prediction for Microsoft?",
     "Can you explain why Netflix's stock price might fluctuate?",
     "What are some factors that influence Amazon's opening stock prices?",
     "What role does trading volume play in stock price volatility?",
     "Explain how stock trading volume impacts market trends.",
 ]
 selected_question = st.sidebar.radio("Choose a question to get started:", pre_created_questions)
+
+############################################## Sidebar for model selection
+st.sidebar.header("Select Prediction Model")
+prediction_model = st.sidebar.radio(
+    "Choose a model for predictions:",
+    ["RNN", "LSTM"],
+    index=0
+)
+
+# Map the user's selection to the correct BigQuery table
+model_prediction_table_mapping = {
+    "RNN": "finnhub-pipeline-ba882.financial_data.ML_RNN_predictions",
+    "LSTM": "finnhub-pipeline-ba882.financial_data.ML_LSTM_predictions",
+}
+
+# Get the selected prediction table
+selected_prediction_table = model_prediction_table_mapping[prediction_model]
 
 ############################################## Project setup
 GCP_PROJECT = 'finnhub-pipeline-ba882'
@@ -98,13 +114,38 @@ def involves_valid_field(question):
             return value
     return None
 
-# Check if the question asks about predictions and determine the model
-def involves_prediction(question):
-    if "xgboost" in question.lower():
-        return "finnhub-pipeline-ba882.financial_data.ML_predictions_xgboost_predictions"
-    elif "random forest" in question.lower():
-        return "finnhub-pipeline-ba882.financial_data.ML_predictions_random_forest_predictions"
-    return None
+# Main logic to handle user questions
+def handle_question(prompt):
+    stock_symbol = extract_stock_symbol(prompt)
+    field_query = involves_valid_field(prompt)
+    prediction_table = selected_prediction_table if "predict" in prompt.lower() else None
+
+    if stock_symbol and (field_query or prediction_table):
+        with st.spinner(f"Fetching data for {stock_symbol}..."):
+            # Determine the number of days
+            if "1 day" in prompt.lower() or "tomorrow" in prompt.lower():
+                days = 1
+            elif "3 days" in prompt.lower():
+                days = 3
+            elif "5 days" in prompt.lower() or "next five days" in prompt.lower():
+                days = 5
+            else:
+                days = 5  # Default to 5 days
+
+            # Query BigQuery for data
+            df = query_data(stock_symbol, field=field_query, days=days, prediction_table=prediction_table)
+            if df is not None and not df.empty:
+                if prediction_table:
+                    st.write(f"**Predictions for {stock_symbol.upper()} (Next {days} Days) using {prediction_model}:**")
+                else:
+                    st.write(f"**{field_query.capitalize()} for {stock_symbol.upper()} (Last {days} Days):**")
+                st.dataframe(df)
+            else:
+                st.error(f"No data found for {stock_symbol.upper()} in the selected timeframe.")
+    else:
+        # Route to LLM for general questions
+        response = get_chat_response(chat_session, prompt)
+        st.chat_message("assistant").markdown(response)
 
 # Query specific data from the trades table or predictions table
 def query_data(stock_symbol, field=None, days=None, prediction_table=None):
@@ -127,39 +168,6 @@ def query_data(stock_symbol, field=None, days=None, prediction_table=None):
         LIMIT {days}
         """
     return query_bigquery(sql_query)
-
-# Main logic to handle user questions
-def handle_question(prompt):
-    stock_symbol = extract_stock_symbol(prompt)
-    field_query = involves_valid_field(prompt)
-    prediction_table = involves_prediction(prompt)
-
-    if stock_symbol and (field_query or prediction_table):
-        with st.spinner(f"Fetching data for {stock_symbol}..."):
-            # Determine the number of days
-            if "1 day" in prompt.lower() or "tomorrow" in prompt.lower():
-                days = 1
-            elif "3 days" in prompt.lower():
-                days = 3
-            elif "5 days" in prompt.lower() or "next five days" in prompt.lower():
-                days = 5
-            else:
-                days = 5  # Default to 5 days
-
-            # Query BigQuery for data
-            df = query_data(stock_symbol, field=field_query, days=days, prediction_table=prediction_table)
-            if df is not None and not df.empty:
-                if prediction_table:
-                    st.write(f"**Predictions for {stock_symbol.upper()} (Next {days} Days):**")
-                else:
-                    st.write(f"**{field_query.capitalize()} for {stock_symbol.upper()} (Last {days} Days):**")
-                st.dataframe(df)
-            else:
-                st.error(f"No data found for {stock_symbol.upper()} in the selected timeframe.")
-    else:
-        # Route to LLM for general questions
-        response = get_chat_response(chat_session, prompt)
-        st.chat_message("assistant").markdown(response)
 
 # Handle pre-created questions
 if st.sidebar.button("Ask Selected Question"):
