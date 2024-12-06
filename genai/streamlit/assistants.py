@@ -136,16 +136,23 @@ def handle_question(prompt):
             df = query_data(stock_symbol, field=field_query, days=days, prediction_table=prediction_table)
             if df is not None and not df.empty:
                 if prediction_table:
-                    st.write(f"**Predictions for {stock_symbol.upper()} (Next {days} Days) using {prediction_model}:**")
+                    response = f"**Predictions for {stock_symbol.upper()} (Next {days} Days) using {prediction_model}:**"
                 else:
-                    st.write(f"**{field_query.capitalize()} for {stock_symbol.upper()} (Last {days} Days):**")
+                    response = f"**{field_query.capitalize()} for {stock_symbol.upper()} (Last {days} Days):**"
+                st.session_state.messages.append({"role": "assistant", "content": response})
                 st.dataframe(df)
             else:
-                st.error(f"No data found for {stock_symbol.upper()} in the selected timeframe.")
+                response = f"No data found for {stock_symbol.upper()} in the selected timeframe."
+                st.session_state.messages.append({"role": "assistant", "content": response})
+                st.error(response)
     else:
         # Route to LLM for general questions
         response = get_chat_response(chat_session, prompt)
+        st.session_state.messages.append({"role": "assistant", "content": response})
         st.chat_message("assistant").markdown(response)
+
+    # Add the user message to the chat history
+    st.session_state.messages.append({"role": "user", "content": prompt})
 
 # Query specific data from the trades table or predictions table
 def query_data(stock_symbol, field=None, days=None, prediction_table=None):
@@ -168,6 +175,14 @@ def query_data(stock_symbol, field=None, days=None, prediction_table=None):
         LIMIT {days}
         """
     return query_bigquery(sql_query)
+
+# Display chat history
+st.subheader("Chat History")
+for message in st.session_state.messages:
+    if message["role"] == "user":
+        st.chat_message("user").markdown(message["content"])
+    else:
+        st.chat_message("assistant").markdown(message["content"])
 
 # Handle pre-created questions
 if st.sidebar.button("Ask Selected Question"):

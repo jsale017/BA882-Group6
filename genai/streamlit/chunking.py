@@ -70,6 +70,47 @@ if articles is not None and not articles.empty:
             file_name=f"{selected_symbol}_article_summary.txt",
             mime="text/plain"
         )
+
+        # Fetch similar articles
+        def query_similar_articles(selected_headline, selected_summary):
+            # Construct the LIKE patterns
+            like_pattern = f"%{selected_summary.lower()}%"
+            query = f"""
+            SELECT headline, summary, custom_sentiment_score, custom_sentiment_label, published_at
+            FROM `finnhub-pipeline-ba882.financial_data.news_sentiment`
+            WHERE LOWER(headline) != LOWER(@selected_headline)
+            AND (LOWER(summary) LIKE @like_pattern
+                OR LOWER(headline) LIKE @like_pattern)
+            ORDER BY published_at DESC
+            LIMIT 5
+            """
+            job_config = bigquery.QueryJobConfig(
+                query_parameters=[
+                    bigquery.ScalarQueryParameter("selected_headline", "STRING", selected_headline),
+                    bigquery.ScalarQueryParameter("like_pattern", "STRING", like_pattern),
+                ]
+            )
+            try:
+                query_job = client.query(query, job_config=job_config)
+                results = query_job.result()
+                rows = [dict(row) for row in results]
+                return pd.DataFrame(rows) if rows else None
+            except Exception as e:
+                st.error(f"Failed to query BigQuery for similar articles: {str(e)}")
+                return None
+
+        similar_articles = query_similar_articles(article_details['headline'], article_details['summary'])
+
+        # Display similar articles
+        st.subheader("Similar Articles")
+        if similar_articles is not None and not similar_articles.empty:
+            for idx, row in similar_articles.iterrows():
+                st.write(f"**Headline:** {row['headline']}")
+                st.write(f"**Published At:** {row['published_at']}")
+                st.write(f"**Sentiment Label:** {row['custom_sentiment_label']}")
+                st.write("---")
+        else:
+            st.write("No similar articles found.")
 else:
     st.warning(f"No news articles found for {selected_stock}.")
 
