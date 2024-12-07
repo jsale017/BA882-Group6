@@ -60,4 +60,6 @@ The Predictive Financial Analytics APIs project is a comprehensive end-to-end so
 8. Vertex AI  
 9. Streamlit
 
+## Streamlit User-Interface: https://streamlit-genai-apps-676257416424.us-central1.run.app
+
 
