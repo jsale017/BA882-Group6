@@ -20,8 +20,8 @@ PINECONE_SECRET_NAME = "pinecone"
 VERSION_ID = "latest"
 
 # Chunking Configuration
-CHUNK_SIZE = 1000  # Adjust based on your token limit
-CHUNK_OVERLAP = 200  # Overlap between chunks to ensure continuity
+CHUNK_SIZE = 1000 
+CHUNK_OVERLAP = 400
 
 # Secret Manager setup for Pinecone
 sm = secretmanager.SecretManagerServiceClient()
@@ -124,9 +124,9 @@ def chat_with_rag(query, top_k=5):
 
         # Generate LLM response
         prompt_template = f"""
-        You are an AI assistant trained to answer questions based on provided context.
-        Use the context below to answer the user's query accurately and concisely.
-        If the context does not contain sufficient information, explicitly state that.
+        You are an AI assistant trained to answer questions based on provided 10-ks.
+        Use the context below to answer the user's query.
+        After explaining in depth all the information, provide a summary at the end for the section that the user is interested in learning more about. 
 
         ### Context:
         {context}
