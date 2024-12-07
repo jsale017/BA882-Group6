@@ -19,7 +19,6 @@ embedder = TextEmbeddingModel.from_pretrained(EMBEDDING_MODEL)
 TASK = "RETRIEVAL_QUERY"
 
 ############################################## Streamlit setup
-st.image("https://www.goodbookkeepersoncall.com/wp-content/uploads/2015/12/financial_report-2.jpg")
 st.title("10-K Analysis and Interactive RAG Chat")
 
 ############################################## Functions

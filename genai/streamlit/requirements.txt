@@ -5,3 +5,7 @@ llama-index
 langchain
 PyPDF2
 matplotlib
+pinecone
+google-cloud-secret-manager
+networkx
+matplotlib
