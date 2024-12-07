@@ -9,3 +9,4 @@ pinecone
 google-cloud-secret-manager
 networkx
 matplotlib
+scikit-learn
