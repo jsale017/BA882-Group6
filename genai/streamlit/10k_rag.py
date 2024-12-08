@@ -144,25 +144,22 @@ def chat_with_rag(query, top_k=5):
         return None
 
 ############################################## Sidebar for 10-K Upload
-st.sidebar.title("Upload 10-K Reports")
-file1 = st.sidebar.file_uploader("Upload first 10-K PDF", type=['pdf'], accept_multiple_files=False)
-file2 = st.sidebar.file_uploader("Upload second 10-K PDF", type=['pdf'], accept_multiple_files=False)
+st.sidebar.title("Upload 10-K Report")
+file = st.sidebar.file_uploader("Upload a 10-K PDF", type=['pdf'], accept_multiple_files=False)
 
 ############################################## Main Logic
 
-if file1 and file2:
-    st.success("10-K PDFs uploaded successfully!")
+if file:
+    st.success("10-K PDF uploaded successfully!")
     with st.spinner("Extracting text and generating embeddings..."):
-        text1 = extract_text_from_pdf(file1)
-        text2 = extract_text_from_pdf(file2)
+        text = extract_text_from_pdf(file)
 
-        if text1 and text2:
-            generate_and_store_chunk_embeddings("10k_doc_1", text1)
-            generate_and_store_chunk_embeddings("10k_doc_2", text2)
+        if text:
+            generate_and_store_chunk_embeddings("10k_doc", text)
             st.success("Text extraction and embedding storage completed successfully!")
 
             # Chat input box for user queries
-            st.subheader("Ask Questions About the 10-K Reports")
+            st.subheader("Ask Questions About the 10-K Report")
             user_query = st.text_input("Type your question here:")
 
             if user_query.strip():
@@ -177,7 +174,5 @@ if file1 and file2:
                             file_name="rag_response.txt",
                             mime="text/plain"
                         )
-        else:
-            st.error("Error processing one or both PDFs. Please try again.")
 else:
-    st.info("Please upload two 10-K PDFs to begin.")
+    st.info("Please upload a 10-K PDF to begin.")
