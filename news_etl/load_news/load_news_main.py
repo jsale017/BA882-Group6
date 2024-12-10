@@ -62,22 +62,32 @@ def load_to_bigquery(dataset_id, table_id, data):
         table_ref = client.dataset(dataset_id).table(table_id)
 
         # Format the data to match the BigQuery schema
-        rows_to_insert = [
-            {
-                "headline": article["headline"],
-                "summary": article["summary"],
-                "original_sentiment_score": article.get("original_sentiment_score", None),
-                "original_sentiment_label": article.get("original_sentiment_label", None),
-                "custom_sentiment_score": article.get("custom_sentiment_score", None),
-                "custom_sentiment_label": article.get("custom_sentiment_label", None),
-                "source": article["source"],
-                "published_at": article["published_at"][:4] + "-" + article["published_at"][4:6] + "-" +
-                                article["published_at"][6:8] + "T" +
-                                article["published_at"][9:11] + ":" + article["published_at"][11:13] + ":" +
-                                article["published_at"][13:]
-            }
-            for article in data
-        ]
+        # Use a set to ensure uniqueness
+        seen_records = set()
+        rows_to_insert = []
+
+        for article in data:
+            record_key = (
+                article["headline"],
+                article["summary"],
+                article["source"],
+                article["published_at"]
+            )  # Create a tuple of fields that uniquely identify a record
+            if record_key not in seen_records:
+                seen_records.add(record_key)
+                rows_to_insert.append({
+                    "headline": article["headline"],
+                    "summary": article["summary"],
+                    "original_sentiment_score": article.get("original_sentiment_score", None),
+                    "original_sentiment_label": article.get("original_sentiment_label", None),
+                    "custom_sentiment_score": article.get("custom_sentiment_score", None),
+                    "custom_sentiment_label": article.get("custom_sentiment_label", None),
+                    "source": article["source"],
+                    "published_at": article["published_at"][:4] + "-" + article["published_at"][4:6] + "-" +
+                                    article["published_at"][6:8] + "T" +
+                                    article["published_at"][9:11] + ":" + article["published_at"][11:13] + ":" +
+                                    article["published_at"][13:]
+                })
 
         # Insert rows into BigQuery
         errors = client.insert_rows_json(table_ref, rows_to_insert)
@@ -88,6 +98,20 @@ def load_to_bigquery(dataset_id, table_id, data):
             logging.info(f"Successfully loaded data into {table_id}")
     except Exception as e:
         logging.error(f"Error loading data into BigQuery: {e}")
+        raise
+
+# Function to deduplicate the BigQuery table
+def deduplicate_bigquery_table(dataset_id, table_id):
+    try:
+        client = bigquery.Client()
+        query = f"""
+        CREATE OR REPLACE TABLE `{dataset_id}.{table_id}` AS
+        SELECT DISTINCT * FROM `{dataset_id}.{table_id}`;
+        """
+        client.query(query).result()
+        logging.info(f"Duplicates removed from {table_id}")
+    except Exception as e:
+        logging.error(f"Error removing duplicates: {e}")
         raise
 
 # Main route to load news data into BigQuery
@@ -113,7 +137,9 @@ def load_news():
 
             # Load transformed data into BigQuery
             load_to_bigquery(dataset_id, table_id, transformed_data)
-
+        
+        # Deduplicate the BigQ
+        deduplicate_bigquery_table(dataset_id, table_id)
         logging.info("News data successfully loaded to BigQuery")
         return jsonify({"message": "News data successfully loaded to BigQuery."}), 200
 
@@ -124,5 +150,5 @@ def load_news():
 # Only include this if running locally (not necessary for deployment on Cloud Run)
 if __name__ == "__main__":
     import os
-    port = int(os.environ.get("PORT", 8080))  # Default to port 8080
+    port = int(os.environ.get("PORT", 8080))
     app.run(host="0.0.0.0", port=port)
